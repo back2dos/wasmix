@@ -1,0 +1,6 @@
+-cp src
+-lib hxnodejs
+-dce full
+-js bin\test.js
+--main Main
+--macro Run.afterBuild()

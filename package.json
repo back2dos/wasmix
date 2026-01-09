@@ -1,0 +1,6 @@
+{
+  "name": "wasmix",
+  "dependencies": {
+    "lix": "^16.0.2"
+  }
+}

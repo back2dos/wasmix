@@ -1,13 +1,15 @@
 package wasmix.wasm;
 
-enum abstract ValueType(Int) {
-  var I32 = 0x7F;
-  var I64 = 0x7E;
-  var F32 = 0x7D;
-  var F64 = 0x7C;
-  var V128 = 0x7B;
-  var FuncRef = 0x70;
-  var ExternRef = 0x6F;
+enum ValueType {
+  I32;
+  I64;
+  F32;
+  F64;
+  V128;
+  FuncRef;
+  ExternRef;
+  RefNull(typeIndex: Int);  // (ref null $type) - typed nullable reference
+  Ref(typeIndex: Int);      // (ref $type) - typed non-null reference
 }
 
 typedef Limits = {
@@ -47,6 +49,7 @@ enum Instruction {
   Return;
   Call(functionIndex: Int);
   CallIndirect(typeIndex: Int);
+  CallRef(typeIndex: Int);
   
   // Parametric
   Drop;

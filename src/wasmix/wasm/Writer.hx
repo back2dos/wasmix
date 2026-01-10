@@ -176,7 +176,21 @@ class Writer {
   // ========================================================================
 
   function writeValueType(vt:ValueType):Void {
-    writeByte(cast vt);
+    switch vt {
+      case I32: writeByte(0x7F);
+      case I64: writeByte(0x7E);
+      case F32: writeByte(0x7D);
+      case F64: writeByte(0x7C);
+      case V128: writeByte(0x7B);
+      case FuncRef: writeByte(0x70);
+      case ExternRef: writeByte(0x6F);
+      case RefNull(typeIndex):
+        writeByte(0x63);
+        writeSLEB128(typeIndex);
+      case Ref(typeIndex):
+        writeByte(0x64);
+        writeSLEB128(typeIndex);
+    }
   }
 
   function writeLimits(limits:Limits):Void {
@@ -484,6 +498,9 @@ class Writer {
         writeByte(0x11);
         writeULEB128(typeIndex);
         writeByte(0x00); // table index
+      case CallRef(typeIndex):
+        writeByte(0x14);
+        writeULEB128(typeIndex);
 
       // Parametric
       case Drop:

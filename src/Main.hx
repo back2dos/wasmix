@@ -6,6 +6,10 @@ function main() {
 
       trace(Example.op(11, 2, Add));
       trace(Example.op(11, 2, Sub));
+      trace(Example.op2(9, 13, (a, b) -> a + b));
+      
+      // Test function references with call_ref (called from within WASM)
+      // trace(Example.testOp2());  // should print 13 (op2 with add)
     });
   });
   // measure('js', () -> {
@@ -30,6 +34,10 @@ class Example {
     return if (a > b) a else b;
   }
 
+  static public function min(a:Float, b:Float) {
+    return if (a < b) a else b;
+  }
+
   static public function fib(n:Int) {
     return if (n < 2) 1 else fib(n - 1) + fib(n - 2);
   }
@@ -41,6 +49,8 @@ class Example {
   static public function op2(lh:Int, rh:Int, fn:(Int, Int) -> Int) {
     return fn(lh, rh);
   }
+
+
 
 }
 

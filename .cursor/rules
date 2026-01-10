@@ -1,0 +1,102 @@
+# Wasmix Project Rules
+
+## Project Overview
+
+Wasmix is a Haxe macro-based compiler that compiles Haxe classes to WebAssembly (WASM) at compile time. The project uses Haxe macros to analyze typed AST and generate valid WASM binary modules.
+
+## Technology Stack
+
+- **Language**: Haxe (targeting JavaScript/Node.js)
+- **Build**: `haxe dev.hxml` - compiles to `bin/test.js`
+- **Runtime**: Node.js (`node bin/test.js`)
+- **Package Manager**: lix (Haxe package manager)
+- **Libraries**: hxnodejs
+
+## Project Structure
+
+```
+src/
+├── Main.hx                    # Entry point with Example class for testing
+├── Run.macro.hx               # Post-build macro hook
+└── wasmix/
+    ├── Compile.hx             # Public API (macro function declaration)
+    ├── Compile.macro.hx       # Macro implementation for module compilation
+    ├── import.hx              # Using/import declarations for the package
+    ├── compiler/
+    │   ├── ClassScope.macro.hx    # Class-level compilation, type registry
+    │   ├── Imports.macro.hx       # External function import management
+    │   ├── MethodScope.macro.hx   # Expression → WASM instruction compilation
+    │   └── Ops.macro.hx           # WASM operation mapping
+    └── wasm/
+        ├── Data.hx            # WASM data structures (types, instructions, module)
+        ├── Loader.hx          # WASM module loading utilities
+        └── Writer.hx          # WASM binary format writer
+```
+
+## Haxe Conventions
+
+### File Naming
+- Regular Haxe files: `FileName.hx`
+- Macro-only files: `FileName.macro.hx` (only available at compile time)
+
+### Macro Development
+- Macros in `.macro.hx` files are compile-time only
+- Use `Context` from `haxe.macro.Context` for type resolution
+- Use `haxe.macro.Expr` types for AST manipulation
+- Access typed expressions via `Context.typeExpr()`
+
+### Code Style
+- Use `final` for immutable local variables
+- Prefer arrow functions for callbacks: `(a, b) -> a + b`
+- Use `Null<T>` for nullable types in typedefs
+- Enums are used extensively for WASM instruction representation
+
+## WASM Compilation
+
+### Key Concepts
+- `wasmix.wasm.Data` defines the WASM IR (Instructions, ValueTypes, Module structure)
+- `ClassScope` processes class fields, manages type registry and function signatures
+- `Imports` tracks external function imports (static calls to other classes)
+- `MethodScope` compiles Haxe expressions to WASM instructions
+- `Writer` serializes the Module to WASM binary format
+
+### Value Types
+- `I32`, `I64` - Integer types
+- `F32`, `F64` - Float types
+- `FuncRef`, `ExternRef` - Reference types
+- `Ref(typeIndex)`, `RefNull(typeIndex)` - Typed references
+
+### Instruction Categories
+- Control flow: Block, Loop, If, Br, BrIf, Call, CallRef
+- Variables: LocalGet, LocalSet, GlobalGet, GlobalSet
+- Memory: I32Load, I32Store, etc.
+- Numeric: I32Add, F64Mul, etc.
+- Comparisons: I32Eq, F64Lt, etc.
+
+## Development Workflow
+
+1. Edit source files in `src/`
+2. Build: `haxe dev.hxml`
+3. Run: `node bin/test.js`
+
+## Common Tasks
+
+### Adding New WASM Instructions
+1. Add instruction to `Instruction` enum in `Data.hx`
+2. Add binary encoding in `Writer.hx`
+3. Add Haxe→WASM mapping in `Ops.macro.hx` or `MethodScope.macro.hx`
+
+### Adding New Type Support
+1. Update `ValueType` enum if needed
+2. Modify `ClassScope.macro.hx` for type resolution
+3. Update `MethodScope.macro.hx` for expression handling
+
+### External Function Imports
+The `Imports` class manages calls to functions outside the compiled class:
+- Tracks imported functions by `module::name` key
+- Generates WASM `ImportFunction` entries with proper type signatures
+- External functions are typed as `ExternRef` in WASM
+
+## Testing
+
+The `Example` class in `Main.hx` serves as the test case. Modify it to test new compilation features. The compiled WASM is executed and results are traced.

@@ -7,13 +7,13 @@ class Compile {
         final scope = new wasmix.compiler.ClassScope(e.pos, cl);
         
         final module = scope.transpile();
-
+        
         final exports = scope.exports();
         
         final blob = wasmix.wasm.Writer.toBytes(module);
         
         macro {
-          wasmix.wasm.Loader.load($v{haxe.crypto.Base64.encode(blob)}, {})
+          wasmix.wasm.Loader.load($v{haxe.crypto.Base64.encode(blob)}, ${scope.imports.toExpr()})
             .then(function (result):$exports {
               return cast result.exports;
             });

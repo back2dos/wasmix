@@ -2,12 +2,20 @@ package wasmix.compiler;
 
 class ClassScope {
 
+  static public function classId(cl:ClassType)
+    return '${cl.module}.${cl.name}';
+
   final methods = new Array<MethodScope>();
   final methodIndices = new Map<String, Int>();
   final types = new Array<FunctionType>();
   final typeIndices = new Map<String, Int>();
 
+  public final name:String;
+  public final imports:Imports;
+
   public function new(pos:Position, cl:ClassType) {
+    this.name = classId(cl);
+    this.imports = new Imports(this);
 
     for (f in cl.statics.get()) switch f.kind {
       case FMethod(MethNormal) if (f.isPublic):

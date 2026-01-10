@@ -1,0 +1,2 @@
+dev.hxml
+--macro Run.afterBuild()

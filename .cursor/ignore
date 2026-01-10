@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build output
+bin/
+dump/
+
+# Haxe cache
+.haxelib/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Lock files (large, not useful for AI)
+package-lock.json

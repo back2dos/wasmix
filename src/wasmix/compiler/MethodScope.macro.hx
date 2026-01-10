@@ -79,17 +79,25 @@ class MethodScope {
               thenBody = expr(eif),
               elseBody = eelse != null ? expr(eelse) : [];
 
-        cond.concat([If(ValueType(I32), thenBody, elseBody)]);
+        final blockType = if (eelse != null) ValueType(cls.type(eif.t, e.pos)) else Empty;
+        cond.concat([If(blockType, thenBody, elseBody)]);
 
       case TReturn(e):
         expr(e).concat([Return]);
       case TCall(e, args):
         switch e.expr {
-          case TField(_, FStatic(c, cf)): // TODO: check class
-            final id = cls.getFunctionId(cf.get().name);
+          case TField(_, FStatic(_.get() => c, _.get() => cf)): // TODO: check class
             var ret = [];
+
             for (a in args) ret = ret.concat(expr(a));
-            ret.concat([Call(id)]);
+            
+            if (ClassScope.classId(c) == cls.name) {
+              final id = cls.getFunctionId(cf.name);
+              ret.concat([Call(id)]);
+            } else {
+              final id = cls.imports.addStatic(c, cf);
+              ret.concat([CallIndirect(id)]);
+            }
           default:
             switch e.t {
               case TFun(params, ret):

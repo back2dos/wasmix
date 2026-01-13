@@ -57,8 +57,21 @@ src/
 - `wasmix.wasm.Data` defines the WASM IR (Instructions, ValueTypes, Module structure)
 - `ClassScope` processes class fields, manages type registry and function signatures
 - `Imports` tracks external function imports (static calls to other classes)
-- `MethodScope` compiles Haxe expressions to WASM instructions
+- `MethodScope` compiles Haxe expressions to WASM instructions (two-phase)
 - `Writer` serializes the Module to WASM binary format
+
+### Two-Phase Compilation
+WASM function indices must account for imports (imports come first in index space).
+`MethodScope` uses a two-phase approach:
+
+1. **Scan phase** (constructor): Traverses AST to collect locals and register imports via `addStatic()`
+2. **Transpile phase** (`transpile()`): Generates instructions with correct indices via `findStatic()`
+
+`ClassScope` computes method indices *after* all MethodScopes are constructed:
+```haxe
+final offset = imports.count();
+for (i => m in methods) methodIndices[m.field.name] = i + offset;
+```
 
 ### Value Types
 - `I32`, `I64` - Integer types
@@ -93,9 +106,10 @@ src/
 
 ### External Function Imports
 The `Imports` class manages calls to functions outside the compiled class:
-- Tracks imported functions by `module::name` key
-- Generates WASM `ImportFunction` entries with proper type signatures
-- External functions are typed as `ExternRef` in WASM
+- `addStatic(cls, f)` — registers import during scan phase, returns index
+- `findStatic(cls, f)` — retrieves import index during transpile phase
+- `count()` — returns total imports (used to offset method indices)
+- `toExpr()` — generates Haxe expression for JS import object
 
 ## Testing
 

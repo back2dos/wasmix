@@ -2,7 +2,7 @@ package wasmix.compiler;
 
 class ClassScope {
 
-  static public function classId(cl:ClassType)
+  static public function typeId(cl:BaseType)
     return '${cl.module}.${cl.name}';
 
   final methods = new Array<MethodScope>();
@@ -14,14 +14,11 @@ class ClassScope {
   public final imports:Imports;
 
   public function new(pos:Position, cl:ClassType) {
-    this.name = classId(cl);
+    this.name = typeId(cl);
     this.imports = new Imports(this);
 
     for (f in cl.statics.get()) switch f.kind {
-      case FMethod(MethNormal) if (f.isPublic):
-        
-        methodIndices[f.name] = methods.length;
-
+      case FMethod(MethNormal) if (f.isPublic):        
         switch f.expr() {
           case { expr: TFunction(fn) }:
             methods.push(new MethodScope(this, f, fn));
@@ -30,6 +27,10 @@ class ClassScope {
         }
       default:
     }
+
+    final offset = imports.count();
+    
+    for (i => m in methods) methodIndices[m.field.name] = i + offset;
   }
 
   public inline function getFunctionId(name:String) {
@@ -49,6 +50,9 @@ class ClassScope {
       );
   }
 
+  public function isSelf(cls:ClassType)
+    return ClassScope.typeId(cls) == name;
+
   public function transpile():Module {
     return {
       functions: [for (method in methods) method.transpile()],
@@ -56,6 +60,7 @@ class ClassScope {
         name: method.field.name,
         kind: ExportFunction(methodIndices[method.field.name])
       }],
+      imports: imports.all(),
       types: types,
     }
   }
@@ -66,9 +71,11 @@ class ClassScope {
         switch a.toString() {
           case "Bool" | "Int": I32;
           case "Float": F64;
+          case "EnumValue": ExternRef;
           default: Context.error('Unsupported type ${a.toString()}', pos);
         }
-      case TFun(args, ret): ExternRef;
+      case TInst(c = _.get() => { kind: KTypeParameter(_) }, _): Context.error('Type parameter $c not supported', pos);
+      case TDynamic(_) | TEnum(_) | TInst(_): ExternRef;
       default: Context.error('Unsupported type ${t.toString()}', pos);
     }
   }

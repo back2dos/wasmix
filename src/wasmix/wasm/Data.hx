@@ -87,6 +87,7 @@ enum Instruction {
   I64Store8(offset: Int, align: Int);
   I64Store16(offset: Int, align: Int);
   I64Store32(offset: Int, align: Int);
+  
   MemorySize(memoryIndex: Int);
   MemoryGrow(memoryIndex: Int);
   MemoryInit(dataIndex: Int, memoryIndex: Int);

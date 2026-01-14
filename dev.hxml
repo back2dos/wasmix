@@ -1,8 +1,7 @@
 -cp src
 -cp tests
-
--lib hxnodejs
-
+-lib js.lib.BigInt
+-lib travix
 -dce full
 -D js-enums-as-arrays
 

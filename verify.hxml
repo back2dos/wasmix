@@ -1,2 +1,4 @@
 dev.hxml
+-lib hxnodejs
+
 --macro Run.afterBuild()

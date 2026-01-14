@@ -442,9 +442,17 @@ class Writer {
     writeByte(0x0B); // end
   }
 
-  function writeMemArg(offset:Int, align:Int):Void {
-    writeULEB128(align);
-    writeULEB128(offset);
+  function writeMemArg(offset:Int, align:Int, memoryIndex = 0):Void {
+    if (memoryIndex != 0) {
+      // Multi-memory encoding: set bit 6 in align to indicate memory index follows
+      writeULEB128(align | 0x40);
+      writeULEB128(offset);
+      writeULEB128(memoryIndex);
+    } else {
+      // MVP encoding: no memory index
+      writeULEB128(align);
+      writeULEB128(offset);
+    }
   }
 
   function writeInstruction(instr:Instruction):Void {
@@ -529,75 +537,75 @@ class Writer {
         writeULEB128(globalIndex);
 
       // Memory operations
-      case I32Load(offset, align):
+      case I32Load(offset, align, memoryIndex):
         writeByte(0x28);
-        writeMemArg(offset, align);
-      case I64Load(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Load(offset, align, memoryIndex):
         writeByte(0x29);
-        writeMemArg(offset, align);
-      case F32Load(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case F32Load(offset, align, memoryIndex):
         writeByte(0x2A);
-        writeMemArg(offset, align);
-      case F64Load(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case F64Load(offset, align, memoryIndex):
         writeByte(0x2B);
-        writeMemArg(offset, align);
-      case I32Load8S(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I32Load8S(offset, align, memoryIndex):
         writeByte(0x2C);
-        writeMemArg(offset, align);
-      case I32Load8U(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I32Load8U(offset, align, memoryIndex):
         writeByte(0x2D);
-        writeMemArg(offset, align);
-      case I32Load16S(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I32Load16S(offset, align, memoryIndex):
         writeByte(0x2E);
-        writeMemArg(offset, align);
-      case I32Load16U(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I32Load16U(offset, align, memoryIndex):
         writeByte(0x2F);
-        writeMemArg(offset, align);
-      case I64Load8S(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Load8S(offset, align, memoryIndex):
         writeByte(0x30);
-        writeMemArg(offset, align);
-      case I64Load8U(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Load8U(offset, align, memoryIndex):
         writeByte(0x31);
-        writeMemArg(offset, align);
-      case I64Load16S(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Load16S(offset, align, memoryIndex):
         writeByte(0x32);
-        writeMemArg(offset, align);
-      case I64Load16U(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Load16U(offset, align, memoryIndex):
         writeByte(0x33);
-        writeMemArg(offset, align);
-      case I64Load32S(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Load32S(offset, align, memoryIndex):
         writeByte(0x34);
-        writeMemArg(offset, align);
-      case I64Load32U(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Load32U(offset, align, memoryIndex):
         writeByte(0x35);
-        writeMemArg(offset, align);
-      case I32Store(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I32Store(offset, align, memoryIndex):
         writeByte(0x36);
-        writeMemArg(offset, align);
-      case I64Store(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Store(offset, align, memoryIndex):
         writeByte(0x37);
-        writeMemArg(offset, align);
-      case F32Store(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case F32Store(offset, align, memoryIndex):
         writeByte(0x38);
-        writeMemArg(offset, align);
-      case F64Store(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case F64Store(offset, align, memoryIndex):
         writeByte(0x39);
-        writeMemArg(offset, align);
-      case I32Store8(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I32Store8(offset, align, memoryIndex):
         writeByte(0x3A);
-        writeMemArg(offset, align);
-      case I32Store16(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I32Store16(offset, align, memoryIndex):
         writeByte(0x3B);
-        writeMemArg(offset, align);
-      case I64Store8(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Store8(offset, align, memoryIndex):
         writeByte(0x3C);
-        writeMemArg(offset, align);
-      case I64Store16(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Store16(offset, align, memoryIndex):
         writeByte(0x3D);
-        writeMemArg(offset, align);
-      case I64Store32(offset, align):
+        writeMemArg(offset, align, memoryIndex);
+      case I64Store32(offset, align, memoryIndex):
         writeByte(0x3E);
-        writeMemArg(offset, align);
+        writeMemArg(offset, align, memoryIndex);
       case MemorySize(memoryIndex):
         writeByte(0x3F);
         writeByte(memoryIndex);

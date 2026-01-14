@@ -1,9 +1,4 @@
 import haxe.Timer.stamp;
-#if nodejs
-import js.Node.console;
-#else
-import js.Browser.console;
-#end
 
 function main() {
   wasmix.Compile.module(Example).then(x -> {

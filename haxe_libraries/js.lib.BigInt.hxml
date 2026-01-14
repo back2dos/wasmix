@@ -1,0 +1,3 @@
+# @install: lix --silent download "haxelib:/js.lib.BigInt#0.1.0" into js.lib.BigInt/0.1.0/haxelib
+-cp ${HAXE_LIBCACHE}/js.lib.BigInt/0.1.0/haxelib/src
+-D js.lib.BigInt=0.1.0

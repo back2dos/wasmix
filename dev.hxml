@@ -1,8 +1,9 @@
 -cp src
 -cp tests
+
 -lib js.lib.BigInt
--lib travix
 -dce full
+
 -D js-enums-as-arrays
 
 -js bin\test.js

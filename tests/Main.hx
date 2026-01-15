@@ -1,18 +1,32 @@
+import js.lib.*;
+
 import haxe.Timer.stamp;
 
 function main() {
   wasmix.Compile.module(Example).then(x -> {
-    var o = [haxe.ds.Option.None, haxe.ds.Option.Some(123)];
-    var res = o[0];
-    measure('  JS', () -> {
-      for (i in 0...10_000_000) res = Example.double(o[i % 2]);
-    });
+    x.memory.grow(100);
+    final arr = new Int16Array(x.memory.buffer, 0, 1000000);
+    for (i in 0...arr.length) arr[i] = 1;
+    
+    trace(arr.length);
+    
+    final wasm = x.memory.toWASM(arr);
 
-    measure('WASM', () -> {
-      for (i in 0...10_000_000) res = x.double(o[i % 2]);
-    });
+    x.inc(cast wasm, 10);
 
-    trace(res);
+    trace(arr[Std.random(arr.length)]);
+    
+    // measure('WASM', () -> {
+    //   var sum = 0; 
+    //   for (i in 0...1000) sum = x.sum(cast wasm);
+    //   trace(sum);
+    // });
+    
+    // measure('JS', () -> {
+    //   var sum = 0; 
+    //   for (i in 0...1000) sum = Example.sum(arr);
+    //   trace(sum);
+    // });
   });
 }
 

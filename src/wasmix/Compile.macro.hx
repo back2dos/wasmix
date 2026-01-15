@@ -5,12 +5,14 @@ class Compile {
     return switch Context.typeExpr(e).expr {
       case TTypeExpr(TClassDecl(_.get() => cl)):
 
+        final exports = macro : { final memory:String; };
         final scope = new wasmix.compiler.ClassScope(e.pos, cl);
         
         final exports = scope.exports();
         
+
         if (Context.defined('display'))
-          macro js.lib.Promise.resolve(($e:$exports));
+          macro js.lib.Promise.resolve((cast $e:$exports));
         else {
           final module = scope.transpile();
           final blob = wasmix.wasm.Writer.toBytes(module);

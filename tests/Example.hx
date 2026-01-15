@@ -1,3 +1,4 @@
+import js.lib.Int16Array;
 import haxe.ds.Option;
 
 class Test {
@@ -12,19 +13,32 @@ enum Flag {
 }
 
 class Example {
-  static public function double(e:Option<Int>) {
-    return switch e {
-      case Some(x): Some(x * 2);
-      case None: None;
-    }
+  // static public function double(e:Option<Int>) {
+  //   return switch e {
+  //     case Some(x): Some(x * 2);
+  //     case None: None;
+  //   }
+  // }
+
+  static public function length(u:Int16Array) {
+    return u.length;
+  }
+
+  static public function sum(u:Int16Array) {
+    var sum = 0;
+    for (k in u) sum += k;
+    return sum;
   }
   
-  static public function enums(e:Option<Int>) {
-    return switch e {
-      case Some(x): x;
-      case None: 0;
-    }
+  static public function inc(u:Int16Array, delta:Int) {
+    for (i in 0...u.length) u[i] += delta;
   }
+  // static public function enums(e:Option<Int>) {
+  //   return switch e {
+  //     case Some(x): x;
+  //     case None: 0;
+  //   }
+  // }
 
   // static public function min(a:Float, b:Float) {
     // var x = new haxe.EnumFlags<Flag>();
@@ -47,9 +61,6 @@ class Example {
   // static public function op2(lh:Int, rh:Int, fn:(Int, Int) -> Int) {
   //   return fn(lh, rh);
   // }
-
-
-
 }
 
 enum abstract Operator(Int) {

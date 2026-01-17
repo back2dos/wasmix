@@ -155,7 +155,6 @@ class MethodScope {
                 .concat([If(Empty, [Br(0)], [Br(1)])])
           )]
         )];
-
       case TBlock(el):
         var result:Expression = [];
         for (e in el) result = result.concat(expr(e));

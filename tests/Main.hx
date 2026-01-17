@@ -4,21 +4,21 @@ import haxe.Timer.stamp;
 
 function main() {
   wasmix.Compile.module(Example).then(x -> {
-    x.memory.grow(100);
-    final arr = new Int16Array(x.memory.buffer, 0, 1000000);
-    for (i in 0...arr.length) arr[i] = 1;
+    // x.memory.grow(100);
     
-    trace(arr.length);
-    
-    final wasm = x.memory.toWASM(arr);
+    // final arr = new Int16Array(x.memory.buffer, 0, 1000000);
 
-    x.inc(cast wasm, 10);
+    // for (i in 0...arr.length) arr[i] = 1;
+        
+    // // final wasm = x.memory.toWASM(arr);
 
-    trace(arr[Std.random(arr.length)]);
+    // final copy = x.roundtrip(arr);
+
+    // trace(copy.length);
     
     // measure('WASM', () -> {
     //   var sum = 0; 
-    //   for (i in 0...1000) sum = x.sum(cast wasm);
+    //   for (i in 0...1000) sum = x.sum(arr);
     //   trace(sum);
     // });
     

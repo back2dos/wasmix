@@ -8,8 +8,8 @@ abstract Memory(js.lib.webassembly.Memory) {
     if (u.buffer != this.buffer) throw 'Buffer does not point to WASM memory';
     return BigInt.ofInts(u.length, u.byteOffset);
   }
-}
 
-class Allocator {
-  
+  public function fromWASM<T:ArrayBufferView & { final length: Int; }>(b:BigInt, ctor:(buf:ArrayBuffer, offset:Int, length:Int) -> T):T {
+    return ctor(this.buffer, b.lo(), b.hi());
+  }
 }

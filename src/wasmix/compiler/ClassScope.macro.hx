@@ -56,6 +56,7 @@ class ClassScope {
     return ClassScope.typeId(cls) == name;
 
   public function transpile():Module {
+    trace(methods[0].fn.expr.toString());
     return {
       functions: [for (method in methods) method.transpile()],
       memories: [
@@ -96,19 +97,19 @@ class ClassScope {
     }
   }
 
-  public function exports() {
+  public function exportsShape() {
     return ComplexType.TAnonymous(
-      [for (method in methods) {
-        name: method.field.name,
-        pos: method.field.pos,
+      [for (m in methods) {
+        name: m.field.name,
+        pos: m.field.pos,
         kind: FFun({
           args: [
-            for (a in method.fn.args) {
+            for (a in m.fn.args) {
               name: a.v.name,
               type: Context.toComplexType(a.v.t),
             }
           ],
-          ret: Context.toComplexType(method.fn.t),
+          ret: Context.toComplexType(m.fn.t),
         }),
       }]
       .concat([{
@@ -120,5 +121,49 @@ class ClassScope {
         kind: FVar(macro : wasmix.runtime.Memory, null),
       }]),
     );
+  }
+
+  static final EXPORTS = "exports";
+
+  public function exports(exports:Expr) {
+    final shape = exportsShape();
+    final fields = [
+      for (m in methods)
+        if (m.fn.args.exists(a -> BufferView.getType(a.v.t) != None)) {
+          final name = m.field.name,
+                mapped = [for (a in m.fn.args) switch BufferView.getType(a.v.t) {
+                  case Some(type): macro cast $i{EXPORTS}.memory.toWASM($i{a.v.name});
+                  case None: macro $i{a.v.name};
+                }];
+          ({
+            field: name,
+            expr: { 
+              expr: EFunction(null, {
+                args: [for (a in m.fn.args) { name: a.v.name, type: Context.toComplexType(a.v.t) }],
+                ret: Context.toComplexType(m.fn.t),
+                expr: {
+                  var body = macro $i{EXPORTS}.$name($a{mapped});
+                  switch Context.followWithAbstracts(m.fn.t) {
+                    case TAbstract(_.toString() => 'Void', _): body;
+                    case BufferView.getType(_) => Some(type): macro return cast $i{EXPORTS}.memory.fromWASM(cast $body, $i{'${type}Array'}.new);
+                    default: macro return $body;
+                  }
+                }
+              }), 
+              pos: m.field.pos 
+            },
+          }:ObjectField);
+        }
+    ];
+
+    return switch fields {
+      case []:
+        exports;
+      case fields:
+        macro { 
+          final $EXPORTS:$shape = cast $exports; 
+          js.lib.Object.assign({}, $i{EXPORTS}, ${{ expr: EObjectDecl(fields), pos: (macro _).pos }});
+        }
+    }
   }
 }

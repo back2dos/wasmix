@@ -8,7 +8,7 @@ class Compile {
         final exports = macro : { final memory:String; };
         final scope = new wasmix.compiler.ClassScope(e.pos, cl);
         
-        final exports = scope.exports();
+        final exports = scope.exportsShape();
         
 
         if (Context.defined('display'))
@@ -20,7 +20,7 @@ class Compile {
           macro {
             wasmix.wasm.Loader.load($v{haxe.crypto.Base64.encode(blob)}, ${scope.imports.toExpr()})
               .then(function (result):$exports {
-                return cast result.exports;
+                return cast ${scope.exports(macro result.exports)};
               });
           }
         }

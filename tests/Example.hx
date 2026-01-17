@@ -13,6 +13,10 @@ enum Flag {
 }
 
 class Example {
+  static public function casts():Float {
+    final v:Float = 1;
+    return v;
+  }
   // static public function double(e:Option<Int>) {
   //   return switch e {
   //     case Some(x): Some(x * 2);
@@ -28,6 +32,10 @@ class Example {
     var sum = 0;
     for (k in u) sum += k;
     return sum;
+  }
+
+  static public function roundtrip(u:Int16Array) {
+    return u;
   }
   
   static public function inc(u:Int16Array, delta:Int) {

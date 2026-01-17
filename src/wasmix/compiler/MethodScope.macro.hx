@@ -1,6 +1,7 @@
 package wasmix.compiler;
 
-import wasmix.compiler.Ops;
+import wasmix.compiler.BinOps;
+import wasmix.compiler.UnOps;
 
 class MethodScope {
   public final field:ClassField;
@@ -22,9 +23,13 @@ class MethodScope {
     }
   }
 
-  function dup(t:ValueType) {
+  public function dup(t:ValueType) {
     final id = tmp(t);
     return [LocalTee(id), LocalGet(id)];
+  }
+
+  public inline function varId(v:TVar) {
+    return varIds[v.id];
   }
 
   public function new(cls, field, fn) {
@@ -57,7 +62,6 @@ class MethodScope {
         cls.imports.addStatic(c, f, sig, e.pos);
 
       case TSwitch(target, cases, eDefault):
-        e.iter(scan);
 
         final tmp = '_wasmix_tmp_${varIdCounter}';// TODO: only temp var if switch target is not a temp var
 
@@ -124,14 +128,14 @@ class MethodScope {
       default: e;
     }
 
-  function expr(e:TypedExpr):Expression {
+  public function expr(e:TypedExpr):Expression {
     return if (e == null) [] else switch e.expr {// strip here?
       case TConst(c): const(e.pos, c);
-      case TLocal(v): [LocalGet(varIds[v.id])];
+      case TLocal(v): [LocalGet(varId(v))];
       case TVar(v, e): 
         if (e == null) [];
-        else expr(e).concat([LocalSet(varIds[v.id])]);
-      case TParenthesis(e), TMeta(_, e), TCast(e, _): expr(e);
+        else expr(e).concat([LocalSet(varId(v))]);
+      case TParenthesis(e), TMeta(_, e), TCast(e, null): expr(e);
       case TEnumIndex(e):
         expr(e).concat([Call(cls.imports.findStaticByName('wasmix.runtime.Enums', 'index', INDEX))]);
       case TEnumParameter(target, _, index):
@@ -142,23 +146,13 @@ class MethodScope {
           [Loop(
             Empty, 
             if (normalWhile)
-              expr(econd)
-                .concat([
-                  I32Eqz,
-                  BrIf(1),
-                ])
-                .concat(expr(e))
-                .concat([Br(0)])
+              expr(econd).concat([I32Eqz, BrIf(1)]).concat(expr(e)).concat([Br(0)])
             else
-              expr(e)
-                .concat(expr(econd))
-                .concat([If(Empty, [Br(0)], [Br(1)])])
+              expr(e).concat(expr(econd)).concat([If(Empty, [Br(0)], [Br(1)])])
           )]
         )];
       case TBlock(el):
-        var result:Expression = [];
-        for (e in el) result = result.concat(expr(e));
-        result;
+        [for (e in el) for (i in expr(e)) i];
       case TIf(econd, eif, eelse):
         
         final cond = expr(econd),
@@ -181,13 +175,10 @@ class MethodScope {
 
             for (a in args) ret = ret.concat(expr(a));
             
-            if (cls.isSelf(c)) {
-              final id = cls.getFunctionId(cf.name);
-              ret.concat([Call(id)]);
-            } else {
-              final id = cls.imports.findStatic(c, cf, sig);
-              ret.concat([Call(id)]);
-            }
+            ret.concat([Call(
+              if (cls.isSelf(c)) cls.getFunctionId(cf.name)
+              else cls.imports.findStatic(c, cf, sig)
+            )]);
           case TField(_, FEnum(_.get() => enm, ef)):
             var ret = [];
 
@@ -200,67 +191,14 @@ class MethodScope {
         }
       case TContinue: [Br(0)];
       case TBreak: [Br(1)];
-      case TUnop(op, postFix, e):
-        switch op {
-          case OpIncrement | OpDecrement:
-            switch e.expr {
-              case TLocal(v):
-                final id = varIds[v.id],
-                      op = op == OpIncrement ? I32Add : I32Sub;
-
-                if (postFix) 
-                  [LocalGet(id), LocalGet(id), I32Const(1), op, LocalSet(id)];
-                else 
-                  [LocalGet(id), I32Const(1), op, LocalTee(id)];
-              default:
-                Context.error('Operand must be a local variable', e.pos);
-            }
-          case OpNot:
-            expr(e).concat([I32Eqz]);
-          case OpNeg:
-            expr(e).concat([I32Const(0), I32Sub]);
-          case OpNegBits:
-            expr(e).concat([I32Const(-1), I32Xor]);
-          case OpSpread:
-            Context.error('Spread operator not supported', e.pos);
-        }
+      case TUnop(op, postFix, v):
+        unOp(this, op, postFix, v, e.pos);
       case TBinop(op, e1, e2):
-
-        function make(op:Binop) 
-          return expr(e1).concat(expr(e2)).concat([binOp(op, e1, e2)]);
-
-        switch op {
-          case OpAssign:
-            switch e1 {
-              case { expr: TLocal(v) }:
-                expr(e2).concat([LocalTee(varIds[v.id])]);
-              case BufferView.access(_) => Some(v):
-                v.offset(expr)
-                  .concat(expr(e2))
-                  .concat([BufferView.store(v.t)]);    
-              default:
-                Context.error('LHS must be a local variable in assignment', e1.pos);
-            }
-          case OpAssignOp(op):
-            switch e1 {
-              case { expr: TLocal(v) }:
-                make(op).concat([LocalTee(varIds[v.id])]);
-              case BufferView.access(_) => Some(v):
-                v.offset(expr)
-                  .concat(dup(I32))
-                  .concat([BufferView.load(v.t)])
-                  .concat(expr(e2))
-                  .concat([binOp(op, e1, e2)])
-                  .concat([BufferView.store(v.t)]);    
-              default:
-                Context.error('LHS must be a local variable', e1.pos);
-            }
-          default: make(op);
-        }
+        binOp(this, op, e1, e2, e.pos);
       default: 
         switch BufferView.access(e) {
           case Some(v):
-            v.offset(expr).concat([BufferView.load(v.t)]);
+            v.get(this);
           default:
             Context.error('Unsupported expression ${e.expr.getName()} in ${fn.expr.toString(true)}', e.pos);
         }

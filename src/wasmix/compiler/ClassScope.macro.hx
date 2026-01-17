@@ -56,7 +56,6 @@ class ClassScope {
     return ClassScope.typeId(cls) == name;
 
   public function transpile():Module {
-    trace(methods[0].fn.expr.toString());
     return {
       functions: [for (method in methods) method.transpile()],
       memories: [

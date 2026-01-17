@@ -13,16 +13,16 @@ enum Flag {
 }
 
 class Example {
-  static public function casts():Float {
-    final v:Float = 1;
-    return v;
-  }
-  // static public function double(e:Option<Int>) {
-  //   return switch e {
-  //     case Some(x): Some(x * 2);
-  //     case None: None;
-  //   }
+  // static public function casts():Float {
+  //   final v:Float = 1;
+  //   return v;
   // }
+  static public function double(e:Option<Int>) {
+    return switch e {
+      case Some(x): Some(x * 2);
+      case None: None;
+    }
+  }
 
   static public function length(u:Int16Array) {
     return u.length;

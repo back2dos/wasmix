@@ -1,31 +1,59 @@
 package wasmix.compiler;
 
+import wasmix.compiler.BinOps;
 import haxe.ds.Option;
 import wasmix.runtime.BufferViewType;
 
 class BufferView {
+  final target:TypedExpr;
+  final index:TypedExpr;
+  final type:BufferViewType;
+
+  function new(target, index, type) {
+    this.target = target;
+    this.index = index;
+    this.type = type;
+  }
+
+  function offset(m:MethodScope) {
+    final width = type.width;
+    
+    return m.expr(target)
+      .concat([I32WrapI64])
+      .concat(m.expr(index))
+      .concat(width == 1 ? [] : [I32Const(width), I32Mul])
+      .concat([I32Add]);
+  }
+
+  public function get(m) {
+    return offset(m).concat([load(type)]);
+  }
+
+  public function set(m:MethodScope, v:TypedExpr) {
+    return offset(m)
+      .concat([load(type)])
+      .concat(m.expr(v))
+      .concat([store(type)]);
+  }
+
+  public function update(m:MethodScope, op:Binop, v:TypedExpr, pos) {
+    return offset(m)
+      .concat(m.dup(I32))
+      .concat([load(type)])
+      .concat(m.expr(v))
+      .concat([OpType.forBuffer(type).with(OpType.ofExpr(v)).getInstruction(op, pos)])
+      .concat([store(type)]);    
+  }
+
   static public function access(e:TypedExpr) {
     return switch e.expr {
       case TArray(target = { t: TInst(getType(_) => Some(type), _) }, index):
-        Some({ 
-          target: target, 
-          index: index, 
-          t: type,
-          offset: (expr:TypedExpr->Expression) -> {
-            final width = type.width;
-                
-            expr(target)
-              .concat([I32WrapI64])
-              .concat(expr(index))
-              .concat(width == 1 ? [] : [I32Const(width), I32Mul])
-              .concat([I32Add]);
-          }
-        });
+        Some(new BufferView(target, index, type));
       default: None;
     }
   }
 
-  static public function load(t:BufferViewType) {
+  static function load(t:BufferViewType) {
     final ret = switch t {
       case Uint8: I32Load8U;
       case Int8: I32Load8S;
@@ -40,7 +68,7 @@ class BufferView {
     return ret(0, t.alignment);
   }
 
-  static public function store(t:BufferViewType) {
+  static function store(t:BufferViewType) {
     final ret = switch t {
       case Uint8: I32Store8;
       case Int8: I32Store8;

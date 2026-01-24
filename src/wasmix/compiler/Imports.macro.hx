@@ -49,7 +49,7 @@ class Imports {
       (modules[module] ??= []).push({
         field: f.name,
         expr: {
-          var callee = macro $p{cls.module.split('.').concat([cls.name, f.name])};
+          var callee = macro @:privateAccess $p{cls.module.split('.').concat([cls.name, f.name])};
           if (isConst) macro () -> $callee;
           else callee;
         }

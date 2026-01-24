@@ -20,7 +20,7 @@ class ClassScope {
     this.imports = new Imports(this);
 
     for (f in cl.statics.get()) switch f.kind {
-      case FMethod(MethNormal) if (f.isPublic):        
+      case FMethod(MethNormal):        
         switch f.expr() {
           case { expr: TFunction(fn) }:
             methods.push(new MethodScope(this, f, fn));
@@ -29,10 +29,6 @@ class ClassScope {
         }
       default:
     }
-
-    final offset = imports.count();
-    
-    for (i => m in methods) methodIndices[m.field.name] = i + offset;
   }
 
   public inline function getFunctionId(name:String) {
@@ -56,8 +52,14 @@ class ClassScope {
     return ClassScope.typeId(cls) == name;
 
   public function transpile():Module {
+    final prepared = [for (method in methods) method.prepare()];
+    
+    final offset = imports.count();
+
+    for (i => m in methods) methodIndices[m.field.name] = i + offset;
+    
     return {
-      functions: [for (method in methods) method.transpile()],
+      functions: [for (generate in prepared) generate()],
       memories: [
         {
           limits: {
@@ -66,7 +68,7 @@ class ClassScope {
           },
         }
       ],
-      exports: [for (method in methods) {
+      exports: [for (method in methods) if (method.field.isPublic) {
         name: method.field.name,
         kind: ExportFunction(methodIndices[method.field.name])
       }].concat([
@@ -99,7 +101,7 @@ class ClassScope {
 
   public function exportsShape() {
     return ComplexType.TAnonymous(
-      [for (m in methods) {
+      [for (m in methods) if (m.field.isPublic){
         name: m.field.name,
         pos: m.field.pos,
         kind: FFun({

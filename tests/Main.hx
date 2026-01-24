@@ -3,8 +3,22 @@ import wasmix.runtime.*;
 
 import haxe.Timer.stamp;
 
+class Foo {
+  static public var first = 1;
+}
+
+class Example {
+  static public function none():haxe.ds.Option<Int> {
+    return None;
+  }
+  static public function fib(n:Int){
+    return if (n < 2) Foo.first else fib(n - 1) + fib(n - 2);
+  }
+}
+
 function main() {
-  wasmix.Compile.module(Example);
+  final example = wasmix.Compile.module(Example, { sync: true, skip: false });
+  trace(example.fib(10));
 
   // wasmix.Compile.module(Track).then(x -> {
   //   return;

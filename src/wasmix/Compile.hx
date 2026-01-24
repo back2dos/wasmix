@@ -1,5 +1,5 @@
 package wasmix;
 
 class Compile {
-  static public macro function module();
+  static public macro function module(e, ?options);
 }

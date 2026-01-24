@@ -67,6 +67,21 @@ class MethodScope {
   }
 
   var scanned = false;
+  
+  public function prepare() {
+    if (!scanned) {
+      scan(fn.expr);
+
+      switch Context.followWithAbstracts(fn.t) {
+        case _.toString() => 'Void':
+        case t: returnType = type(t, field.pos);
+      }
+      scanned = true;
+    }
+
+    return transpile;
+  }
+  
   function scan(e:TypedExpr) {
     if (e != null) switch e.expr {
       case TVar(v, init): 
@@ -79,10 +94,16 @@ class MethodScope {
 
         cls.imports.addStatic(enm, ef, e.t, e.pos);
 
-      case TCall({ expr: TField(_, FStatic(_.get() => c, _.get() => f)), t: sig }, args) if (!cls.isSelf(c)):
+      case TField(_, FStatic(_.get() => c, _.get() => f)) :
+
+        cls.imports.addStatic(c, f, e.t, e.pos);
+
+      case TCall({ expr: TField(_, FStatic(_.get() => c, _.get() => f)), t: sig }, args):
 
         for (a in args) scan(a);
-        cls.imports.addStatic(c, f, sig, e.pos);
+
+        if (!cls.isSelf(c))
+          cls.imports.addStatic(c, f, sig, e.pos);
 
       case TSwitch(target, cases, eDefault):
 
@@ -138,8 +159,7 @@ class MethodScope {
   static final INDEX = Context.typeof(macro wasmix.runtime.Enums.index);
 
   static function error(message:String, pos:Position):Dynamic {
-    throw message;
-    // return Context.error(message, pos);
+    return Context.error(message, pos);
   }
 
   function const(pos:Position, t:TConstant, expected:Null<ValueType>):Expression
@@ -246,6 +266,8 @@ class MethodScope {
         expr(e, returnType).concat([Return]);
       case TField(_, FEnum(_.get() => enm, ef)):
         [Call(cls.imports.findStatic(enm, ef, e.t))];
+      case TField(_, FStatic(_.get() => c, _.get() => f)):
+        [Call(cls.imports.findStatic(c, f, e.t))];
       case TField(target, FInstance(BufferView.getType(_) => Some(type), _, _.get() => { name: 'length' })):
         // LICM: Use cached length if available
         switch strip(target).expr {
@@ -257,6 +279,8 @@ class MethodScope {
           default:
             expr(target, I64).concat([I64Const(32), I64ShrU, I32WrapI64]);
         }
+      case TField(_):
+        error('Invalid field access', e.pos);
       case TCall(e = { t: sig }, args):
 
         function call(id:Int) {
@@ -304,17 +328,7 @@ class MethodScope {
   public inline function type(t, pos)
     return cls.type(t, pos);
 
-  public function transpile():Function {
-    if (!scanned) {
-      scan(fn.expr);
-
-      switch Context.followWithAbstracts(fn.t) {
-        case _.toString() => 'Void':
-        case t: returnType = type(t, field.pos);
-      }
-      scanned = true;
-    }
-    
+  function transpile() {    
     // LICM: Emit base pointer and length extraction at function start
     final preamble:Expression = [];
     for (a in fn.args) {

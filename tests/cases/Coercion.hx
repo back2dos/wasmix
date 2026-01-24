@@ -3,7 +3,7 @@ package cases;
 import wasmix.runtime.*;
 
 function main() {
-  final coercion = wasmix.Compile.module(Coercion, true);
+  final coercion = wasmix.Compile.module(Coercion, { sync: true });
   Assert.that(coercion.vars() == 8);
 }
 

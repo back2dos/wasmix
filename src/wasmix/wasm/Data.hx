@@ -260,7 +260,7 @@ enum Instruction {
 
 enum BlockType {
   Empty;
-  ValueType(vt: ValueType);
+  Value(vt: ValueType);
   TypeIndex(index: Int);
 }
 

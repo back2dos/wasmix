@@ -3,32 +3,52 @@ package wasmix.compiler;
 import wasmix.runtime.BufferViewType;
 import wasmix.wasm.Data;
 
-function binOp(m:MethodScope, op:Binop, e1, e2, pos) {
-  function make(op:Binop) 
-    return m.expr(e1)
-      .concat(m.expr(e2))
-      .concat([OpType.ofExpr(e1).with(OpType.ofExpr(e2)).getInstruction(op, pos)]);
+function binOp(m:MethodScope, op:Binop, e1, e2, pos, expected:ValueType) {
+  function make(op:Binop, expected:ValueType) {
+    
+    final t1 = OpType.ofExpr(e1);
+    final t2 = OpType.ofExpr(e2);
+    final opType = t1.with(t2, expected);
+    
+    final valueType = opType.toValueType();
+    
+    return m.expr(e1, valueType)
+      .concat(m.expr(e2, valueType))
+      .concat([opType.getInstruction(op, pos)]);
+  }
+
+  function store(expr:Expression, to) {
+    var id = m.varId(to);
+    return expr.concat(
+      switch m.coerce(m.type(to.t, pos), expected, pos) {
+        case [Drop]: [LocalSet(id)];
+        case e: [LocalTee(id)].concat(e);
+      }
+    );
+  }
 
   return switch op {
     case OpAssign:
       switch e1 {
         case { expr: TLocal(v) }:
-          m.expr(e2).concat([LocalTee(m.varId(v))]);
-        case BufferView.access(_) => Some(v):
-          v.set(m, e2);
+          store(m.expr(e2, m.type(v.t, e1.pos)), v);
+        case BufferView.access(m, _) => Some(v):
+          v.set(e2, expected);
         default:
           Context.error('LHS must be a local variable in assignment', e1.pos);
       }
+    case OpEq if (e2.expr.match(TConst(TInt(0)))):
+      m.expr(e1, I32).concat([I32Eqz]);
     case OpAssignOp(op):
       switch e1 {
         case { expr: TLocal(v) }:
-          make(op).concat([LocalTee(m.varId(v))]);
-        case BufferView.access(_) => Some(v):
-          v.update(m, op, e2, pos);
+          store(make(op, m.type(v.t, e1.pos)), v);
+        case BufferView.access(m, _) => Some(v):
+          v.update(op, e2, expected);
         default:
           Context.error('LHS must be a local variable', e1.pos);
       }
-    default: make(op);
+    default: make(op, expected);
   }
 }
 
@@ -37,16 +57,25 @@ enum abstract OpType(String) {
   var I64;
   var F32;
   var F64;
-  var STRING;
 
-  public function with(that:OpType)
-    return switch [abstract, that] {
-      case [STRING, _] | [_, STRING]: STRING;
-      case [F64, _] | [_, F64]: F64;
-      case [F32, I64] | [I64, F32]: F64;
-      case [F32, _] | [_, F32]: F32;
-      case [I64, _] | [_, I64]: I64;
-      case [I32, _] | [_, I32]: I32;
+  public function toValueType():ValueType
+    return switch abstract {
+      case I32: ValueType.I32;
+      case I64: ValueType.I64;
+      case F32: ValueType.F32;
+      case F64: ValueType.F64;
+    }
+
+  public function with(that:OpType, expected:Null<ValueType>)
+    return switch [abstract, that, expected] {
+      case [_, _, ValueType.F32]: F32;
+      case [_, _, ValueType.F64]: F64;
+      case [F32, F64, ValueType.I32] | [F64, F32, ValueType.I32]: F32;
+      case [F64, _, _] | [_, F64, _]: F64;
+      case [F32, I64, _] | [I64, F32, _]: F64;
+      case [F32, _, _] | [_, F32, _]: F32;
+      case [I64, _, _] | [_, I64, _]: I64;
+      case [I32, _, _] | [_, I32, _]: I32;
     }
 
   static public function ofType(t:Type, pos:Position) {
@@ -54,8 +83,8 @@ enum abstract OpType(String) {
       case TAbstract(a, _):
         switch a.toString() {
           case "Int" | "Bool": I32;
+          case "wasmix.runtime.Float32": F32;
           case "Float": F64;
-          case "String": STRING;
           default: Context.error('Unsupported type ${a.toString()}', pos);
         }
       default: Context.error('Unsupported type ${t.toString()}', pos);
@@ -144,8 +173,6 @@ enum abstract OpType(String) {
           case OpGte: F64Ge;
           default: Context.error('Unsupported binary operator ${op.getName()} for F64', pos);
         }
-      case STRING:
-        Context.error('String concatenation not supported', pos);
     }
   }
 }

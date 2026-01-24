@@ -5,3 +5,9 @@
     import js.Browser.console;
   #end
 #end
+
+#if macro
+  import haxe.macro.*;
+
+  using haxe.macro.Tools;
+#end

@@ -228,7 +228,7 @@ class Writer {
     switch (blockType) {
       case Empty:
         writeByte(0x40);
-      case ValueType(vt):
+      case Value(vt):
         writeValueType(vt);
       case TypeIndex(index):
         writeSLEB128(index);

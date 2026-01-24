@@ -1,38 +1,46 @@
-import js.lib.*;
+import examples.*;
+import wasmix.runtime.*;
 
 import haxe.Timer.stamp;
 
 function main() {
-  wasmix.Compile.module(Example).then(x -> {
-    x.memory.grow(100);
-    
-    final arr = new Int16Array(x.memory.buffer, 0, 1000000);
+  wasmix.Compile.module(Example);
 
-    for (i in 0...arr.length) arr[i] = 1;
-        
-    // // final wasm = x.memory.toWASM(arr);
+  // wasmix.Compile.module(Track).then(x -> {
+  //   return;
+  //   x.memory.grow(8000);
 
-    // final copy = x.roundtrip(arr);
+  //   final length = 40_000_000;
 
-    // trace(copy.length);
-    
-    measure('WASM', () -> {
-      var sum = 0; 
-      for (i in 0...1000) sum = x.sum(arr);
-      trace(sum);
-    });
-    
-    // measure('JS', () -> {
-    //   var sum = 0; 
-    //   for (i in 0...1000) sum = Example.sum(arr);
-    //   trace(sum);
-    // });
-  });
+  //   final left = new Float32Array(x.memory.buffer, 0, length);
+  //   final right = new Float32Array(x.memory.buffer, left.byteLength, length);
+
+  //   for (i in 0...left.length) {
+  //     left[i] = Math.random() * 2 - 1;
+  //     right[i] = Math.random() * 2 - 1;
+  //   }
+
+  //   final iters = 10;
+  //   for (_ in 0...iters) {
+  //     x.pan(left, right, 0.0);
+  //     Track.pan(left, right, 0.0);
+  //   }
+
+  //   for (run in 0...2) {
+  //     measure('Wasmix run ${run} (${iters} iters)', () -> {
+  //       for (i in 0...iters) x.pan(left, right, 0.0);  // gain = 1.0
+  //     });
+
+  //     measure('Track run ${run} (${iters} iters)', () -> {
+  //       for (i in 0...iters) Track.pan(left, right, 0.0);  // gain = 1.0
+  //     });
+  //   }
+  // });
 }
 
-function measure(what, fn) {
+function measure<T>(what, fn:()->T) {
   final start = stamp();
   fn();
   final end = stamp();
-  trace('${what}: ${end - start}ms');
+  trace('${what}: ${(end - start) * 1000}ms');
 }

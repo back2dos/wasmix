@@ -5,50 +5,70 @@ import haxe.ds.Option;
 import wasmix.runtime.BufferViewType;
 
 class BufferView {
+  final m:MethodScope;
   final target:TypedExpr;
   final index:TypedExpr;
   final type:BufferViewType;
+  final valueType:ValueType;
+  final pos:Position;
 
-  function new(target, index, type) {
+  function new(m, target, index, type, pos) {
+    this.m = m;
     this.target = target;
     this.index = index;
     this.type = type;
+    this.pos = pos;
+    this.valueType = switch type {
+      case Float32: F32;
+      case Float64: F64;
+      default: I32;
+    }
   }
 
-  function offset(m:MethodScope) {
+  function offset() {
     final width = type.width;
     
-    return m.expr(target)
-      .concat([I32WrapI64])
-      .concat(m.expr(index))
+    // LICM: Use cached base pointer if available (for function parameters)
+    final basePtr:Expression = switch target.expr {
+      case TLocal(v):
+        switch m.getCachedBasePtr(v.id) {
+          case null: m.expr(target, I64).concat([I32WrapI64]);
+          case basePtrLocalId: [LocalGet(basePtrLocalId)];
+        }
+      default:
+        m.expr(target, I64).concat([I32WrapI64]);
+    };
+    
+    return basePtr
+      .concat(m.expr(index, I32))
       .concat(width == 1 ? [] : [I32Const(width), I32Mul])
       .concat([I32Add]);
   }
 
-  public function get(m) {
-    return offset(m).concat([load(type)]);
+  public function get(expected:Null<ValueType>) {
+    return offset().concat([load(type)]).concat(m.coerce(valueType, expected, pos));
   }
 
-  public function set(m:MethodScope, v:TypedExpr) {
-    return offset(m)
-      .concat([load(type)])
-      .concat(m.expr(v))
-      .concat([store(type)]);
+  public function set(v:TypedExpr, expected:Null<ValueType>) {
+    return offset()
+      .concat(m.expr(v, valueType))
+      .concat(store(expected));
   }
 
-  public function update(m:MethodScope, op:Binop, v:TypedExpr, pos) {
-    return offset(m)
+  public function update(op:Binop, v:TypedExpr, expected:Null<ValueType>) {
+    final opType = OpType.forBuffer(type).with(OpType.ofExpr(v), valueType);
+    return offset()
       .concat(m.dup(I32))
       .concat([load(type)])
-      .concat(m.expr(v))
-      .concat([OpType.forBuffer(type).with(OpType.ofExpr(v)).getInstruction(op, pos)])
-      .concat([store(type)]);    
+      .concat(m.expr(v, opType.toValueType()))
+      .concat([opType.getInstruction(op, pos)])
+      .concat(store(expected));    
   }
 
-  static public function access(e:TypedExpr) {
+  static public function access(m:MethodScope, e:TypedExpr) {
     return switch e.expr {
       case TArray(target = { t: TInst(getType(_) => Some(type), _) }, index):
-        Some(new BufferView(target, index, type));
+        Some(new BufferView(m, target, index, type, e.pos));
       default: None;
     }
   }
@@ -68,8 +88,8 @@ class BufferView {
     return ret(0, t.alignment);
   }
 
-  static function store(t:BufferViewType) {
-    final ret = switch t {
+  function store(expected:Null<ValueType>) {
+    final ret = switch type {
       case Uint8: I32Store8;
       case Int8: I32Store8;
       case Uint16: I32Store16;
@@ -80,14 +100,19 @@ class BufferView {
       case Float64: F64Store;
     }
 
-    return ret(0, t.alignment);
+    final instruction = ret(0, type.alignment);
+
+    return switch m.coerce(valueType, expected, pos) {
+      case [Drop]: [instruction];
+      case e: m.dup(valueType).concat([instruction]).concat(e);
+    }
   }
 
   static final BY_NAME = [for (a in BufferViewType.ALL) '${a}Array' => a];
 
   static public function getType(c:Classy) {
     return switch c.get() {
-      case Some({ pack: ['js', 'lib'], name: BY_NAME[_] => kind }) if (kind != null):
+      case Some({ pack: ['js', 'lib'] | ['wasmix', 'runtime'], name: BY_NAME[_] => kind }) if (kind != null):
         Some((kind:BufferViewType));
       default:
         None;

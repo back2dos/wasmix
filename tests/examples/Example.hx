@@ -1,4 +1,6 @@
-import js.lib.Int16Array;
+package examples;
+
+import wasmix.runtime.*;
 import haxe.ds.Option;
 
 class Test {
@@ -7,16 +9,11 @@ class Test {
   }
 }
 
-enum Flag {
-  A;
-  B;
-}
-
 class Example {
-  // static public function casts():Float {
-  //   final v:Float = 1;
-  //   return v;
-  // }
+  static public function casts():Float {
+    final v:Float32 = 1;
+    return v;
+  }
   static public function double(e:Option<Int>) {
     return switch e {
       case Some(x): Some(x * 2);
@@ -46,11 +43,6 @@ class Example {
   //     case Some(x): x;
   //     case None: 0;
   //   }
-  // }
-
-  // static public function min(a:Float, b:Float) {
-    // var x = new haxe.EnumFlags<Flag>();
-    // return if (a < b) a else b;
   // }
 
   // static public function fib(n:Int) {

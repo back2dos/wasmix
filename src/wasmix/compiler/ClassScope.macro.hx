@@ -85,6 +85,7 @@ class ClassScope {
       case TAbstract(a, _): 
         switch a.toString() {
           case "Bool" | "Int": I32;
+          case "wasmix.runtime.Float32": F32;
           case "Float": F64;
           case "EnumValue": ExternRef;
           default: Context.error('Unsupported type ${a.toString()}', pos);
@@ -144,7 +145,7 @@ class ClassScope {
                   var body = macro $i{EXPORTS}.$name($a{mapped});
                   switch Context.followWithAbstracts(m.fn.t) {
                     case TAbstract(_.toString() => 'Void', _): body;
-                    case BufferView.getType(_) => Some(type): macro return cast $i{EXPORTS}.memory.fromWASM(cast $body, $i{'${type}Array'}.new);
+                    case BufferView.getType(_) => Some(type): macro return cast $i{EXPORTS}.memory.fromWASM(cast $body, $p{['wasmix', 'runtime', '${type}Array']}.new);
                     default: macro return $body;
                   }
                 }

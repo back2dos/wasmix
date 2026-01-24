@@ -1,10 +1,12 @@
 -cp src
 -cp tests
 
+-lib travix
 -lib js.lib.BigInt
 -dce full
-
+-D loop-unroll-max-cost=0
 -D js-enums-as-arrays
-
+-D macro-times
+# --times
 -js bin\test.js
 --main Main

@@ -35,7 +35,7 @@ function binOp(m:MethodScope, op:Binop, e1, e2, pos, expected:ValueType) {
         case BufferView.access(m, _) => Some(v):
           v.set(e2, expected);
         default:
-          Context.error('LHS must be a local variable in assignment', e1.pos);
+          Context.error('LHS must be a local variable or typed array', e1.pos);
       }
     case OpEq if (e2.expr.match(TConst(TInt(0)))):
       m.expr(e1, I32).concat([I32Eqz]);
@@ -46,7 +46,7 @@ function binOp(m:MethodScope, op:Binop, e1, e2, pos, expected:ValueType) {
         case BufferView.access(m, _) => Some(v):
           v.update(op, e2, expected);
         default:
-          Context.error('LHS must be a local variable', e1.pos);
+          Context.error('LHS must be a local variable or typed array', e1.pos);
       }
     default: make(op, expected);
   }

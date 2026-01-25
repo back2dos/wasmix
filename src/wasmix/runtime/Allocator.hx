@@ -20,6 +20,24 @@ class Allocator {
     }
   }
 
+  public function s8(length) return new Int8Array(memory.buffer, alloc(0, length), length);
+  public function s16(length) return new Int16Array(memory.buffer, alloc(1, length), length);
+  public function s32(length) return new Int32Array(memory.buffer, alloc(2, length), length);
+  public function u8(length) return new Uint8Array(memory.buffer, alloc(0, length), length);
+  public function u16(length) return new Uint16Array(memory.buffer, alloc(1, length), length);
+  public function u32(length) return new Uint32Array(memory.buffer, alloc(2, length), length);
+  public function f32(length) return new Float32Array(memory.buffer, alloc(2, length), length);
+  public function f64(length) return new Float64Array(memory.buffer, alloc(3, length), length);
+
+  overload public extern inline function free(s8:Int8Array) _free(0, s8.byteOffset, s8.length);
+  overload public extern inline function free(s16:Int16Array) _free(1, s16.byteOffset, s16.length);
+  overload public extern inline function free(s32:Int32Array) _free(2, s32.byteOffset, s32.length);
+  overload public extern inline function free(u8:Uint8Array) _free(0, u8.byteOffset, u8.length);
+  overload public extern inline function free(u16:Uint16Array) _free(1, u16.byteOffset, u16.length);
+  overload public extern inline function free(u32:Uint32Array) _free(2, u32.byteOffset, u32.length);
+  overload public extern inline function free(f32:Float32Array) _free(2, f32.byteOffset, f32.length);
+  overload public extern inline function free(f64:Float64Array) _free(3, f64.byteOffset, f64.length);
+
   /**
     Should allocate space for a typed array of the given length and alignment.
     The width of every element is 1 << align and there are length elements. 
@@ -77,7 +95,7 @@ class Allocator {
   /**
     Can free space allocated by allocate.
   **/
-  function free(align:Int, offset:Int, length:Int) {
+  function _free(align:Int, offset:Int, length:Int) {
     final size = sizeOf(align, length);
     switch bucketSize(size) {
       case -1: freeLarge(offset, size);

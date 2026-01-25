@@ -98,6 +98,9 @@ class MethodScope {
 
         cls.imports.addStatic(c, f, e.t, e.pos);
 
+      case TField(_, v):
+        error('${v.getName().substr(1)} field access not supported', e.pos);
+
       case TCall({ expr: TField(_, FStatic(_.get() => c, _.get() => f)), t: sig }, args):
 
         for (a in args) scan(a);

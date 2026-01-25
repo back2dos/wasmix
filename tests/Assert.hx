@@ -9,15 +9,29 @@ class Assert {
   static var total = 0;
   static var passed = 0;
   static var suite = null;
-  static function _assert(holds:Bool, message:String, module:String) {
+  static var subsuite = null;
+
+  static function _assert(holds:Bool, message:String, module:String, method:String) {
     total++;
-    if (suite != module) 
+    if (suite != module) {
       println('\nTesting ${suite = module}:\n');
+      subsuite = null;
+    }
+
+    if (method != subsuite) {
+      subsuite = switch method {
+        case 'main': null;
+        case v: 
+          println('\n  $v:\n');
+          v;
+      }
+    }
+    var indent = subsuite == null ? '  ' : '    ';
     if (holds) {
-      println('  [✔] - ${message}');
+      println('$indent[✔] - $message');
       passed++;
     } else {
-      println('  [✘] - ${message}');
+      println('$indent[✘] - $message');
     }
   }
 

@@ -3,11 +3,11 @@ package cases;
 import wasmix.runtime.*;
 
 function main() {
-  final coercion = wasmix.Compile.module(Coercion, { sync: true });
+  final coercion = wasmix.Compile.module(Coercion);
   final a = new Allocator(coercion.memory);
 
   Assert.that(coercion.vars() == 8);
-  
+
   Assert.that(Std.string(coercion.f32(a.f32(5), a.f64(4))) == '1,2,3,4.5,5.5');
   Assert.that(Std.string(coercion.f64(a.f64(5), a.s32(4))) == '10,20.5,30,20.375,101.25');
 }

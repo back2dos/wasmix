@@ -13,6 +13,18 @@ final example = wasmix.Compile.module(Example, { sync: true });
 trace(example.fib(10));// traces 89
 ```
 
+You can optionally pass a number of flags, like so:
+
+```haxe
+wasmix.Compile.module(Example, { async: false, skip: false, validate: false });
+```
+
+All flags are false by default, and behave as follows:
+
+- `async` - if set to `true`, you will receive a `Promise` instead of just the instiated module
+- `skip` - if set to `true`, you will receive an object with exactly the same structure as the WASM module, but it will run in JavaScript
+- `validate` - if set to `true`, will attempt to validate the WASM via nodejs. Has no effect for `skip: true`.
+
 ## Goal
 
 The goal of this library is to allow you to:

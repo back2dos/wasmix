@@ -4,7 +4,7 @@ import wasmix.Compile;
 import wasmix.runtime.*;
 
 function main() {
-  final physics = Compile.module(Physics, { sync: true });
+  final physics = Compile.module(Physics);
   
   // Test reading external static field
   Assert.that(physics.getGravity() == 10);

@@ -3,7 +3,7 @@ package cases;
 import wasmix.Compile;
 
 function main() {
-  final buffers = Compile.module(Buffers, { sync: true });
+  final buffers = Compile.module(Buffers);
   final ret = buffers.test();
   Assert.that(ret == 123);
 }

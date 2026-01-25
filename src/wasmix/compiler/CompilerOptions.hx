@@ -1,6 +1,6 @@
 package wasmix.compiler;
 
 typedef CompilerOptions = {
-  ?sync:Bool,
+  ?async:Bool,
   ?skip:Bool,
 }

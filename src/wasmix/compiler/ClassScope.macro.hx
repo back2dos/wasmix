@@ -9,7 +9,7 @@ class ClassScope {
 
   final methods = new Array<MethodScope>();
   final methodIndices = new Map<String, Int>();
-  final types = new Array<FunctionType>();
+  final types = new Array<FunctionSignature>();
   final typeIndices = new Map<String, Int>();
 
   public final name:String;

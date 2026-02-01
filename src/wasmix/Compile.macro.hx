@@ -3,6 +3,8 @@ package wasmix;
 import wasmix.compiler.*;
 
 class Compile {
+  static final toValidate = [];
+
   static function module(e, ?options:Expr) {
     final display = Context.defined('display');
 
@@ -43,6 +45,18 @@ class Compile {
           final base64 = haxe.crypto.Base64.encode(
             wasmix.wasm.Writer.toBytes(scope.transpile())
           );
+
+          toValidate.push({ buf: base64, pos: e.pos });
+
+          if (toValidate.length == 1) 
+            Context.onAfterGenerate(() -> {
+              for (v in toValidate) {
+                switch Sys.command('node', ['-e', 'try { new WebAssembly.Module(Buffer.from("${v.buf}", "base64")); } catch (e) { console.log(e.message); process.exit(1); }']) {
+                  case 0:
+                  default: Context.error('Validation failed', v.pos);
+                }
+              }
+            });
 
           final imports = scope.imports.toExpr();
 

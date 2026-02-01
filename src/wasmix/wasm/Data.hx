@@ -31,7 +31,7 @@ typedef GlobalType = {
   mutable: Bool
 }
 
-typedef FunctionType = {
+typedef FunctionSignature = {
   params: Array<ValueType>,
   results: Array<ValueType>
 }
@@ -323,7 +323,7 @@ typedef DataSegment = {
 // ============================================================================
 
 typedef Module = {
-  ?types: Array<FunctionType>,
+  ?types: Array<FunctionSignature>,
   ?imports: Array<Import>,
   ?functions: Array<Function>,
   ?tables: Array<TableType>,

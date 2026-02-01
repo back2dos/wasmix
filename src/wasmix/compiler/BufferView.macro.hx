@@ -112,7 +112,7 @@ class BufferView {
 
   static public function getType(c:Classy) {
     return switch c.get() {
-      case Some({ pack: ['js', 'lib'] | ['wasmix', 'runtime'], name: BY_NAME[_] => kind }) if (kind != null):
+      case Some({ pack: ['wasmix', 'runtime'], name: BY_NAME[_] => kind }) if (kind != null):
         Some((kind:BufferViewType));
       default:
         None;
@@ -140,7 +140,7 @@ abstract Classy(Option<ClassType>) {
     }
   );
 
-  @:from static function ofType(v:Type) return new Classy(switch Context.follow(v) {
+  @:from static function ofType(v:Type) return new Classy(switch Context.followWithAbstracts(v) {
     case TInst(c, _): Some(c.get());
     default: None;
   });

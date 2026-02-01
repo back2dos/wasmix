@@ -98,8 +98,13 @@ class MethodScope {
 
         cls.imports.addStatic(c, f, e.t, e.pos);
 
-      case TField(_, v):
-        error('${v.getName().substr(1)} field access not supported', e.pos);
+      case TField(owner, FInstance(_, _, _.get().name => name)) if (BufferView.getType(owner.t) == None):
+
+        scan(owner);
+
+        Context.warning(name, e.pos);
+
+        cls.imports.addField(owner.t, name, Get(e.t), e.pos);
 
       case TCall({ expr: TField(_, FStatic(_.get() => c, _.get() => f)), t: sig }, args):
 
@@ -107,6 +112,14 @@ class MethodScope {
 
         if (!cls.isSelf(c))
           cls.imports.addStatic(c, f, sig, e.pos);
+      
+      case TCall({ expr: TField(receiver, FInstance(_, _, _.get().name => name)), t: sig }, args):
+
+        scan(receiver);
+
+        for (a in args) scan(a);
+
+        cls.imports.addField(receiver.t, name, Method(FunctionType.of(sig, e.pos)), e.pos);
 
       case TSwitch(target, cases, eDefault):
 
@@ -282,8 +295,10 @@ class MethodScope {
           default:
             expr(target, I64).concat([I64Const(32), I64ShrU, I32WrapI64]);
         }
-      case TField(_):
-        error('Invalid field access', e.pos);
+      case TField(_, v):
+        
+        error('${v.getName().substr(1)} field access not supported ($v)', e.pos);  
+  
       case TCall(e = { t: sig }, args):
 
         function call(id:Int) {
@@ -304,6 +319,10 @@ class MethodScope {
             );
           case TField(_, FEnum(_.get() => enm, ef)):
             call(cls.imports.findStatic(enm, ef, e.t));
+          case TField(receiver, FInstance(_, _, _.get().name => name)):
+            expr(receiver, ExternRef).concat(
+              call(cls.imports.findField(receiver.t, name, Method(FunctionType.of(e.t, e.pos)), e.pos))
+            );
           default:
             error('Invalid call target $e', e.pos);
         }

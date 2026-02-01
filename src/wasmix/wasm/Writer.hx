@@ -218,7 +218,7 @@ class Writer {
     writeByte(globalType.mutable ? 0x01 : 0x00);
   }
 
-  function writeFunctionType(funcType:FunctionType):Void {
+  function writeFunctionType(funcType:FunctionSignature):Void {
     writeByte(0x60); // Function type marker
     writeVector(funcType.params, writeValueType);
     writeVector(funcType.results, writeValueType);
@@ -239,7 +239,7 @@ class Writer {
   // Section Writers
   // ========================================================================
 
-  function writeTypeSection(types:Array<FunctionType>):Void {
+  function writeTypeSection(types:Array<FunctionSignature>):Void {
     if (types == null || types.length == 0) return;
     writeSection(SECTION_TYPE, () -> {
       writeVector(types, writeFunctionType);

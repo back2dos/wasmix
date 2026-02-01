@@ -1,5 +1,7 @@
 # WASMIX - WASM In haXe
 
+DISCLAIMER: this library is in early stages of development.
+
 This library allows you to use a subset of Haxe and have it transpiled to WASM.
 
 ```haxe
@@ -9,7 +11,7 @@ class Example {
   }
 }
 
-final example = wasmix.Compile.module(Example, { sync: true });
+final example = wasmix.Compile.module(Example);
 trace(example.fib(10));// traces 89
 ```
 
@@ -23,7 +25,7 @@ All flags are false by default, and behave as follows:
 
 - `async` - if set to `true`, you will receive a `Promise` instead of just the instiated module
 - `skip` - if set to `true`, you will receive an object with exactly the same structure as the WASM module, but it will run in JavaScript
-- `validate` - if set to `true`, will attempt to validate the WASM via nodejs. Has no effect for `skip: true`.
+- `validate` - if set to `true`, will attempt to validate the WASM via whatever nodejs version you have installed. Has no effect for `skip: true`.
 
 ## Goal
 
@@ -44,13 +46,21 @@ This library is *not* intended for running arbitrary Haxe code at the speed of W
 ## Supported Types
 
 - `Bool`, `Int`, `Float` and `js.lib.BigInt`: Supported natively as I32, I32, F64 and I64 respectively
-- Enums: Supported by bridging into Haxe, so constructing/destructuring does come at a significant overhead. For example doubling the value of a `haxe.ds.Option.Some` (read index, read param, construct new `Option`) takes ~5x more time in WASM than Haxe/JS: 20ns vs. 5ns. That still means you can do it 50x in a micro second (or 50000x in a millisecond). Just don't do it in a hot loop.
 - Typed Arrays: in `wasmix.buffer` you will find typed arrays that correspond to those in `js.lib` (the signature differs slightly for various reasons), provided they are in the wasm module's memory - any other typed arrays will throw exceptions.
+- Enums: Supported by bridging into Haxe, so constructing/destructuring does come at a significant overhead. For example doubling the value of a `haxe.ds.Option.Some` (read index, read param, construct new `Option`) takes ~5x more time in WASM than Haxe/JS: 20ns vs. 5ns. That still means you can do it 50x in a micro second (or 50000x in a millisecond). Just don't do it in a hot loop.
 - Classes: Generally, you can use any Haxe class from WASM, but you should note that methods which are not inlined will have an overhead for bridging. Inlined methods on the other hand will have to be wasmix compatible.
 - `abstract` over any supported type. 
 - Instances: planned
+- Array: planned
+- String: planned
 - Anonymous object: planned
+
+Please note that anything other than types arrays
 
 ### Typed Arrays
 
-Within the WASM runtime, Typed Arrays are passed around as I64, with the low 32 bits being the offset and the high 32 bits being the length.
+Within the WASM runtime, Typed Arrays are passed around as I64, with the low 32 bits being the offset and the high 32 bits being the length. Instead of using `js.lib` you will have to use `wasmix.runtime`. The primary reason is that `js.lib.Float32Array` operates on double precision floats, whereas in WASM we want it to stick to `Float32`. You can always call `toJS` to get the corresponding `js.lib` type to operate on the full interface in JS (it's really just an unsafe cast).
+
+## SIMD
+
+The next biggest thing to figure out will be how to make SIMD instructions available in wasmix in a way that is reasonably readable and can work in JS too. This is currently subject to investigation.

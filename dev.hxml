@@ -6,6 +6,7 @@
 -dce full
 -D loop-unroll-max-cost=0
 -D js-enums-as-arrays
+-D js-es=6
 -D macro-times
 # --times
 -js bin\test.js

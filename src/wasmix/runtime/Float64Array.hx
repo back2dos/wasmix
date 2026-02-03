@@ -9,9 +9,12 @@ extern class Float64Array implements ArrayAccess<Float> implements ArrayBufferVi
   final byteOffset:Int;
   final byteLength:Int;
 
-  public function new(buffer:ArrayBuffer, byteOffset:Int, length:Int);
+  function new(buffer:ArrayBuffer, byteOffset:Int, length:Int);
 
-  public inline function toJS():js.lib.Float64Array {
+  function toHex():String;
+  function toString():String;
+  
+  inline function toJS():js.lib.Float64Array {
     return cast this;
   }
 }

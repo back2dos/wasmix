@@ -60,9 +60,6 @@ class Compile {
 
           final imports = scope.imports.toExpr();
 
-          function export(inst:Expr)
-            return macro (cast ${scope.exports(macro $inst.exports)}:$exports);
-
           if (options.skip) {
             var withoutMemory = switch exports {
               case TAnonymous(fields): ComplexType.TAnonymous([for (f in fields) if (f.name != 'memory') f]);// for DCE
@@ -72,11 +69,23 @@ class Compile {
             if (options.async) macro js.lib.Promise.resolve(fake);
             else fake;
           }
-          else 
-            if (options.async)
-              macro wasmix.wasm.Loader.load($v{base64}, ${imports}).then(inst -> ${export(macro inst)});
-            else
-              export(macro wasmix.wasm.Loader.loadSync($v{base64}, ${imports}));
+          else {
+            final EXPORTS = "exports";
+
+            function export(inst:Expr)
+              return macro $i{EXPORTS} = cast ${scope.exports(macro cast $inst.exports)};
+  
+            var ret = 
+              if (options.async)
+                macro wasmix.wasm.Loader.load($v{base64}, ${imports}).then(inst -> ${export(macro inst)});
+              else
+                export(macro wasmix.wasm.Loader.loadSync($v{base64}, ${imports}));
+          
+            macro {
+              var $EXPORTS:$exports = null;
+              $ret;
+            }
+          }
         }
       default: 
         Context.error('Only classes allowed for now', e.pos);

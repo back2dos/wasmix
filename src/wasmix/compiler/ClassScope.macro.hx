@@ -40,12 +40,19 @@ class ClassScope {
       typeIndices[args.concat([ret]).map(t -> t.toString()).join(' -> ')] ??= (
         types.push({
           params: [for (a in args) type(a, pos)],
-          results: switch Context.followWithAbstracts(ret) {
-            case TAbstract(_.toString() => 'Void', _): [];
-            case t: [type(t, pos)];
-          },
+          results: switch retType(ret, pos) {
+            case null: [];
+            case v: [v];
+          }
         }) - 1
       );
+  }
+
+  public function retType(t:Type, pos:Position) {
+    return switch Context.followWithAbstracts(t) {
+      case TAbstract(_.toString() => 'Void', _): null;
+      case t: type(t, pos);
+    }
   }
 
   public function isSelf(cls:ClassType)
@@ -90,18 +97,22 @@ class ClassScope {
           case "wasmix.runtime.Float32": F32;
           case "Float": F64;
           case "EnumValue": ExternRef;
-          default: Context.error('Unsupported type ${a.toString()}', pos);
+          default: error('Unsupported type ${a.toString()}', pos);
         }
       case TInst(c = _.get() => { kind: KTypeParameter(_) }, _): Context.error('Type parameter $c not supported', pos);
       case TInst(BufferView.getType(_) => Some(kind), _): I64;
       case TDynamic(_) | TEnum(_) | TInst(_): ExternRef;
-      default: Context.error('Unsupported type ${t.toString()}', pos);
+      default: error('Unsupported type ${t.toString()}', pos);
     }
+  }
+
+  function error(message:String, pos:Position):Dynamic {
+    return Context.error(message, pos);
   }
 
   public function exportsShape() {
     return ComplexType.TAnonymous(
-      [for (m in methods) if (m.field.isPublic){
+      [for (m in methods) if (m.field.isPublic) {
         name: m.field.name,
         pos: m.field.pos,
         kind: FFun({
@@ -125,37 +136,69 @@ class ClassScope {
     );
   }
 
+  public function toWASM(e:Expr, t:Type) {
+    return switch BufferView.getType(t) {
+      case Some(_): macro cast $i{EXPORTS}.memory.toWASM($e);
+      case None: e;
+    }
+  }
+
+  public function fromWASM(e:Expr, t:Type) {
+    return switch BufferView.getType(t) {
+      case Some(type): macro cast $i{EXPORTS}.memory.fromWASM(cast $e, $p{['wasmix', 'runtime', '${type}Array']}.new);
+      case None: 
+        switch Context.followWithAbstracts(t) {
+          case TAbstract(_.toString() => 'Bool', _): macro (cast $e) != 0;
+          case t: e;
+        }
+    }
+  }
+
   static final EXPORTS = "exports";
 
   public function exports(exports:Expr) {
     final shape = exportsShape();
     final fields = [
-      for (m in methods)
-        if (m.fn.args.exists(a -> BufferView.getType(a.v.t) != None)) {
-          final name = m.field.name,
-                mapped = [for (a in m.fn.args) switch BufferView.getType(a.v.t) {
-                  case Some(type): macro cast $i{EXPORTS}.memory.toWASM($i{a.v.name});
-                  case None: macro $i{a.v.name};
-                }];
-          ({
-            field: name,
-            expr: { 
-              expr: EFunction(null, {
-                args: [for (a in m.fn.args) { name: a.v.name, type: Context.toComplexType(a.v.t) }],
-                ret: Context.toComplexType(m.fn.t),
-                expr: {
-                  var body = macro $i{EXPORTS}.$name($a{mapped});
-                  switch Context.followWithAbstracts(m.fn.t) {
-                    case TAbstract(_.toString() => 'Void', _): body;
-                    case BufferView.getType(_) => Some(type): macro return cast $i{EXPORTS}.memory.fromWASM(cast $body, $p{['wasmix', 'runtime', '${type}Array']}.new);
-                    default: macro return $body;
-                  }
-                }
-              }), 
-              pos: m.field.pos 
-            },
-          }:ObjectField);
+      for (m in methods) if (m.field.isPublic) {
+        var changed = false;
+
+        function toWASM(e, t) {
+          var ret = this.toWASM(e, t);
+          if (ret != e) changed = true;
+          return ret;
         }
+
+        function fromWASM(e, t) {
+          var ret = this.fromWASM(e, t);
+          if (ret != e) changed = true;
+          return ret;
+        }
+
+        final name = m.field.name,
+              mapped = [for (a in m.fn.args) toWASM(macro $i{a.v.name}, a.v.t)];
+
+        var ret = {
+          var body = macro $i{EXPORTS}.$name($a{mapped});
+          switch Context.followWithAbstracts(m.fn.t) {
+            case TAbstract(_.toString() => 'Void', _): body;
+            case t: macro return ${fromWASM(body, t)};
+          }
+        }
+
+        if (!changed) continue;
+
+        ({
+          field: name,
+          expr: { 
+            expr: EFunction(null, {
+              args: [for (a in m.fn.args) { name: a.v.name, type: Context.toComplexType(a.v.t) }],
+              ret: Context.toComplexType(m.fn.t),
+              expr: ret,
+            }), 
+            pos: m.field.pos 
+          },
+        }:ObjectField);
+      }
     ];
 
     return switch fields {

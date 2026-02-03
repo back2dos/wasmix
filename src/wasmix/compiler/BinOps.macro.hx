@@ -47,7 +47,7 @@ function binOp(m:MethodScope, op:Binop, e1, e2, pos, expected:ValueType) {
           v.update(op, e2, expected);
         default:
           Context.error('LHS must be a local variable or typed array', e1.pos);
-      }
+      }      
     default: make(op, expected);
   }
 }

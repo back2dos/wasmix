@@ -11,6 +11,10 @@ class Assert {
   static var suite = null;
   static var subsuite = null;
 
+  static function _equal<T>(found:T, expected:T) {
+    return haxe.Json.stringify(found) == haxe.Json.stringify(expected);
+  }
+
   static function _assert(holds:Bool, message:String, module:String, method:String) {
     total++;
     if (suite != module) {
@@ -22,7 +26,8 @@ class Assert {
       subsuite = switch method {
         case 'main': null;
         case v: 
-          println('\n  $v:\n');
+          if (subsuite != null) println('');
+          println('  $v:\n');
           v;
       }
     }
@@ -38,6 +43,7 @@ class Assert {
 
 
   static public macro function that();
+  static public macro function equal();
   static public function report() {
     println('\n${passed} / ${total} assertions passed');
     exit(total == passed ? 0 : 1);

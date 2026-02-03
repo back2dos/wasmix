@@ -20,14 +20,38 @@ class Allocator {
     }
   }
 
-  public function s8(length) return new Int8Array(memory.buffer, alloc(0, length), length);
-  public function s16(length) return new Int16Array(memory.buffer, alloc(1, length), length);
-  public function s32(length) return new Int32Array(memory.buffer, alloc(2, length), length);
-  public function u8(length) return new Uint8Array(memory.buffer, alloc(0, length), length);
-  public function u16(length) return new Uint16Array(memory.buffer, alloc(1, length), length);
-  public function u32(length) return new Uint32Array(memory.buffer, alloc(2, length), length);
-  public function f32(length) return new Float32Array(memory.buffer, alloc(2, length), length);
-  public function f64(length) return new Float64Array(memory.buffer, alloc(3, length), length);
+  public function s8(length) return {
+    final offset = alloc(0, length);
+    new Int8Array(memory.buffer, offset, length);
+  }
+  public function s16(length) return {
+    final offset = alloc(1, length);
+    new Int16Array(memory.buffer, offset, length);
+  }
+  public function s32(length) return {
+    final offset = alloc(2, length);
+    new Int32Array(memory.buffer, offset, length);
+  }
+  public function u8(length) return {
+    final offset = alloc(0, length);
+    new Uint8Array(memory.buffer, offset, length);
+  }
+  public function u16(length) return {
+    final offset = alloc(1, length);
+    new Uint16Array(memory.buffer, offset, length);
+  }
+  public function u32(length) return {
+    final offset = alloc(2, length);
+    new Uint32Array(memory.buffer, offset, length);
+  }
+  public function f32(length) return {
+    final offset = alloc(2, length);
+    new Float32Array(memory.buffer, offset, length);
+  }
+  public function f64(length) return {
+    final offset = alloc(3, length);
+    new Float64Array(memory.buffer, offset, length);
+  }
 
   overload public extern inline function free(s8:Int8Array) _free(0, s8.byteOffset, s8.length);
   overload public extern inline function free(s16:Int16Array) _free(1, s16.byteOffset, s16.length);

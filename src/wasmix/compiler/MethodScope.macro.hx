@@ -15,9 +15,6 @@ class MethodScope {
   final locals = new Array<ValueType>();
   final tmpIds = new Map<ValueType, Int>();
   
-  final basePtrIds = new Map<Int, Int>();
-  final lengthIds = new Map<Int, Int>();
-
   function tmp(t:ValueType) {
     return tmpIds[t] ??= {
       final id = varIdCounter++;
@@ -44,26 +41,6 @@ class MethodScope {
       error('Name "memory" is reserved', field.pos);
     
     for (a in fn.args) varIds[a.v.id] = varIdCounter++;
-    
-    // LICM: For BufferView parameters, pre-allocate locals for cached base pointers and lengths
-    for (a in fn.args) {
-      switch BufferView.getType(a.v.t) {
-        case Some(_):
-          basePtrIds[a.v.id] = varIdCounter++;
-          locals.push(I32);
-          lengthIds[a.v.id] = varIdCounter++;
-          locals.push(I32);
-        case None:
-      }
-    }
-  }
-  
-  public inline function getCachedBasePtr(varId:Int):Null<Int> {
-    return basePtrIds[varId];
-  }
-  
-  public inline function getCachedLength(varId:Int):Null<Int> {
-    return lengthIds[varId];
   }
 
   var scanned = false;
@@ -81,6 +58,10 @@ class MethodScope {
 
     return transpile;
   }
+
+  static function isString(e:TypedExpr) {
+    return Context.followWithAbstracts(e.t).match(TInst(_.toString() => 'String', _));
+  }
   
   function scan(e:TypedExpr) {
     if (e != null) switch e.expr {
@@ -90,28 +71,80 @@ class MethodScope {
         locals.push(type(v.t, e.pos));
         scan(init);
 
+      case TArray(arr, index):
+
+        scan(arr);
+        scan(index);
+
+        cls.imports.addStaticByName('wasmix.runtime.Arrays', 'get', FunctionType.arrayGet(arr.t, e.t));
+
+      case TArrayDecl(values):
+        for (v in values) scan(v);
+
+        cls.imports.addStaticByName('wasmix.runtime.Arrays', 'literal', FunctionType.arrayLiteral(e.t, values.length));
+
       case TField(_, FEnum(_.get() => enm, ef)):
 
-        cls.imports.addStatic(enm, ef, e.t, e.pos);
+        cls.imports.add(Static(enm, ef.name, Get(e.t)), e.pos);
 
-      case TField(_, FStatic(_.get() => c, _.get() => f)) :
+      case TField(_, FStatic(_.get() => c, _.get() => f)):
 
-        cls.imports.addStatic(c, f, e.t, e.pos);
+        cls.imports.add(Static(c, f.name, Get(e.t)), e.pos);
+
+      case TNew(_.get() => cl, _, args):
+        for (a in args) scan(a);
+          
+        cls.imports.add(Constructor(cl, FunctionType.of(cl.constructor.get().type, e.pos, args.length, e.t)), e.pos);
+  
+      case TBinop(op, e1, e2) if (isString(e1) || isString(e2)):
+
+        scan(e1);
+        scan(e2);
+
+        function make(op:Binop) {
+          final method = op.getName().toLowerCase().substr(2);
+          final ret = Context.typeExpr(macro @:pos(e.pos) wasmix.runtime.Strings.$method(${Context.storeTypedExpr(e1)}, ${Context.storeTypedExpr(e2)}));
+          scan(ret);
+          return ret;
+        }
+
+        switch op {
+          case OpAssign:
+          case OpAssignOp(op):
+            e.expr = TBinop(OpAssign, e1, make(op));
+          default:
+            e.expr = make(op).expr;
+        }
+
+      case TBinop(op = OpBoolAnd | OpBoolOr, e1, e2):
+
+        scan(e1);
+        scan(e2);
+
+        e.expr = TIf(
+          e1,
+          if (op == OpBoolAnd) e2 else Context.typeExpr(macro true),
+          if (op == OpBoolAnd) Context.typeExpr(macro false) else e2
+        );
 
       case TField(owner, FInstance(_, _, _.get().name => name)) if (BufferView.getType(owner.t) == None):
 
         scan(owner);
 
-        Context.warning(name, e.pos);
+        cls.imports.add(Field(owner.t, name, Get(e.t)), e.pos);
 
-        cls.imports.addField(owner.t, name, Get(e.t), e.pos);
+      case TCall({ expr: TField(_, FEnum(_.get() => enm, f)), t: sig }, args):
+
+        for (a in args) scan(a);
+
+        cls.imports.add(Static(enm, f.name, Method(FunctionType.of(sig, e.pos, args.length))), e.pos);
 
       case TCall({ expr: TField(_, FStatic(_.get() => c, _.get() => f)), t: sig }, args):
 
         for (a in args) scan(a);
 
         if (!cls.isSelf(c))
-          cls.imports.addStatic(c, f, sig, e.pos);
+          cls.imports.add(Static(c, f.name, Method(FunctionType.of(sig, e.pos, args.length))), e.pos);
       
       case TCall({ expr: TField(receiver, FInstance(_, _, _.get().name => name)), t: sig }, args):
 
@@ -119,7 +152,7 @@ class MethodScope {
 
         for (a in args) scan(a);
 
-        cls.imports.addField(receiver.t, name, Method(FunctionType.of(sig, e.pos)), e.pos);
+        cls.imports.add(Field(receiver.t, name, Method(FunctionType.of(sig, e.pos, args.length))), e.pos);
 
       case TSwitch(target, cases, eDefault):
 
@@ -161,6 +194,8 @@ class MethodScope {
       case TEnumParameter(target, _):
         scan(target);
         cls.imports.addStaticByName('wasmix.runtime.Enums', 'param', enumParam(e.t));
+      case TConst(TString(s)):
+        cls.imports.addString(s);
       default:
 
         e.iter(scan);
@@ -180,6 +215,9 @@ class MethodScope {
 
   function const(pos:Position, t:TConstant, expected:Null<ValueType>):Expression
     return switch [t, expected] {
+      case [TNull, null]: [];
+      case [TNull, ExternRef]: [RefNull(ExternRef)];
+      case [TNull, v]: error('Cannot coerce null to ${v}', pos);
       case [TInt(i), I32 | null]: [I32Const(i)];
       case [TInt(i), F32]: [F32Const(i)];
       case [TInt(i), F64]: [F64Const(i)];
@@ -187,6 +225,7 @@ class MethodScope {
       case [TFloat(f), F64 | null]: [F64Const(Std.parseFloat(f))];
       case [TBool(b), I32 | null]: [I32Const(b ? 1 : 0)];
       case [TInt(_) | TFloat(_) | TBool(_), expected]: error('Cannot coerce ${t} to ${expected}', pos);
+      case [TString(s), ExternRef]: [GlobalGet(cls.imports.findString(s))];
       default: error('Unsupported constant type', pos);
     }
 
@@ -237,6 +276,7 @@ class MethodScope {
 
   public function expr(e:TypedExpr, expected:Null<ValueType>):Expression {
     return if (e == null) [] else switch e.expr {// strip here?
+      case BufferView.access(this, e) => Some(v): v.get(expected);
       case TConst(c): const(e.pos, c, expected);
       case TLocal(v): 
         switch expected {
@@ -278,50 +318,55 @@ class MethodScope {
         final blockType = if (expected == null) Empty else BlockType.Value(expected);
         cond.concat([If(blockType, thenBody, elseBody)]);
 
+      case TNew(_.get() => cl, _, args):
+
+        [Call(cls.imports.find(Constructor(cl, FunctionType.of(cl.constructor.get().type, e.pos, args.length, e.t)), e.pos))];
+
       case TReturn(e):
-        expr(e, returnType).concat([Return]);
-      case TField(_, FEnum(_.get() => enm, ef)):
-        [Call(cls.imports.findStatic(enm, ef, e.t))];
-      case TField(_, FStatic(_.get() => c, _.get() => f)):
-        [Call(cls.imports.findStatic(c, f, e.t))];
-      case TField(target, FInstance(BufferView.getType(_) => Some(type), _, _.get() => { name: 'length' })):
-        // LICM: Use cached length if available
-        switch strip(target).expr {
-          case TLocal(v):
-            switch getCachedLength(v.id) {
-              case null: expr(target, I64).concat([I64Const(32), I64ShrU, I32WrapI64]);
-              case lengthLocalId: [LocalGet(lengthLocalId)];
-            }
-          default:
-            expr(target, I64).concat([I64Const(32), I64ShrU, I32WrapI64]);
-        }
-      case TField(_, v):
         
-        error('${v.getName().substr(1)} field access not supported ($v)', e.pos);  
+        expr(e, returnType).concat([Return]);
+        
+      case TField(target, FInstance(BufferView.getType(_) => Some(type), _, _.get().name => name )):
+
+        BufferView.getField(this, target, name, type, expected, e.pos);
+
+      case TField(owner, fa):
+
+        function call(id:Int)
+          return [Call(id)].concat(coerce(cls.retType(e.t, e.pos), expected, e.pos));
+  
+        switch fa {
+          case FStatic(_.get() => c, _.get() => f): 
+            call(cls.imports.find(Static(c, f.name, Get(e.t)), e.pos));
+          case FEnum(_.get() => enm, ef): 
+            call(cls.imports.find(Static(enm, ef.name, Get(e.t)), e.pos));
+          case FInstance(_, _, _.get().name => name): 
+            expr(owner, ExternRef).concat(call(cls.imports.find(Field(owner.t, name, Get(e.t)), e.pos)));
+          default:
+            error('${fa.getName().substr(1)} field access not supported ($fa)', e.pos);  
+        }
   
       case TCall(e = { t: sig }, args):
 
+        final f = FunctionType.of(sig, e.pos, args.length);
+
         function call(id:Int) {
-          return switch Context.follow(sig) {
-            case TFun(argTypes, retType):
-              [for (i => a in args) for (i in expr(a, type(argTypes[i].t, a.pos))) i]
-                .concat([Call(id)])
-                .concat(coerce(type(retType, e.pos), expected, e.pos));
-            default:
-              throw 'assert';
-          }
+          return 
+            [for (i => a in args) for (i in expr(a, type(f.args[i].type, a.pos))) i]
+              .concat([Call(id)])
+              .concat(coerce(cls.retType(f.ret, e.pos), expected, e.pos));
         }
         switch e.expr {
           case TField(_, FStatic(_.get() => c, _.get() => cf)):
             call(
               if (cls.isSelf(c)) cls.getFunctionId(cf.name)
-              else cls.imports.findStatic(c, cf, sig)
+              else cls.imports.find(Static(c, cf.name, Method(f)), e.pos)
             );
           case TField(_, FEnum(_.get() => enm, ef)):
-            call(cls.imports.findStatic(enm, ef, e.t));
+            call(cls.imports.find(Static(enm, ef.name, Method(f)), e.pos));
           case TField(receiver, FInstance(_, _, _.get().name => name)):
-            expr(receiver, ExternRef).concat(
-              call(cls.imports.findField(receiver.t, name, Method(FunctionType.of(e.t, e.pos)), e.pos))
+            expr(receiver, type(receiver.t, e.pos)).concat(
+              call(cls.imports.find(Field(receiver.t, name, Method(f)), e.pos))
             );
           default:
             error('Invalid call target $e', e.pos);
@@ -332,13 +377,23 @@ class MethodScope {
         unOp(this, op, postFix, v, e.pos, expected);
       case TBinop(op, e1, e2):
         binOp(this, op, e1, e2, e.pos, expected);
-      default: 
-        switch BufferView.access(this, e) {
-          case Some(v):
-            v.get(expected);
-          default:
-            error('Unsupported expression ${e.expr.getName()} in ${fn.expr.toString(true)}', e.pos);
+      case TArray(arr, index):
+
+        expr(arr, ExternRef)
+          .concat(expr(index, I32))
+          .concat([Call(cls.imports.findStaticByName('wasmix.runtime.Arrays', 'get', FunctionType.arrayGet(arr.t, e.t)))])
+          .concat(coerce(cls.retType(e.t, e.pos), expected, e.pos));
+
+      case TArrayDecl(values):
+        final expected = switch e.t {
+          case TInst(_.get() => { pack: [], name: 'Array' }, [t]): cls.type(t, e.pos);
+          default: throw 'assert';
         }
+
+        [for (v in values) for (i in expr(v, expected)) i]
+          .concat([Call(cls.imports.findStaticByName('wasmix.runtime.Arrays', 'literal', FunctionType.arrayLiteral(e.t, values.length)))]);
+      default: 
+        error('Unsupported expression ${e.expr.getName()} in ${fn.expr.toString(true)}', e.pos);
     }
   }
 
@@ -351,33 +406,11 @@ class MethodScope {
     return cls.type(t, pos);
 
   function transpile() {    
-    // LICM: Emit base pointer and length extraction at function start
-    final preamble:Expression = [];
-    for (a in fn.args) {
-      switch basePtrIds[a.v.id] {
-        case null:
-        case basePtrLocalId:
-          // Extract base pointer: local.get param; i32.wrap_i64; local.set basePtr
-          preamble.push(LocalGet(varIds[a.v.id]));
-          preamble.push(I32WrapI64);
-          preamble.push(LocalSet(basePtrLocalId));
-      }
-      switch lengthIds[a.v.id] {
-        case null:
-        case lengthLocalId:
-          // Extract length: local.get param; i64.const 32; i64.shr_u; i32.wrap_i64; local.set length
-          preamble.push(LocalGet(varIds[a.v.id]));
-          preamble.push(I64Const(32));
-          preamble.push(I64ShrU);
-          preamble.push(I32WrapI64);
-          preamble.push(LocalSet(lengthLocalId));
-      }
-    }
     
     return {
       typeIndex: cls.signature([for (a in fn.args) a.v.t], fn.t, field.pos),
       locals: locals,
-      body: preamble.concat(expr(fn.expr, null)),
+      body: expr(fn.expr, null),
     }
   }
 }

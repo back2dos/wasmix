@@ -9,9 +9,12 @@ extern class Uint16Array implements ArrayAccess<Int> implements ArrayBufferView 
   final byteOffset:Int;
   final byteLength:Int;
 
-  public function new(buffer:ArrayBuffer, byteOffset:Int, length:Int);
+  function new(buffer:ArrayBuffer, byteOffset:Int, length:Int);
 
-  public inline function toJS():js.lib.Uint16Array {
+  function toHex():String;
+  function toString():String;
+  
+  inline function toJS():js.lib.Uint16Array {
     return cast this;
   }
 }

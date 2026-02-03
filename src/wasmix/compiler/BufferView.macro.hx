@@ -28,22 +28,12 @@ class BufferView {
   function offset() {
     final width = type.width;
     
-    // LICM: Use cached base pointer if available (for function parameters)
-    final basePtr:Expression = switch target.expr {
-      case TLocal(v):
-        switch m.getCachedBasePtr(v.id) {
-          case null: m.expr(target, I64).concat([I32WrapI64]);
-          case basePtrLocalId: [LocalGet(basePtrLocalId)];
-        }
-      default:
-        m.expr(target, I64).concat([I32WrapI64]);
-    };
-    
-    return basePtr
+    return getStart(m, target, type)
       .concat(m.expr(index, I32))
       .concat(width == 1 ? [] : [I32Const(width), I32Mul])
       .concat([I32Add]);
   }
+
 
   public function get(expected:Null<ValueType>) {
     return offset().concat([load(type)]).concat(m.coerce(valueType, expected, pos));
@@ -106,6 +96,32 @@ class BufferView {
       case [Drop]: [instruction];
       case e: m.dup(valueType).concat([instruction]).concat(e);
     }
+  }
+
+  static function getStart(m:MethodScope, target:TypedExpr, type:BufferViewType) {
+    return m.expr(target, I64).concat([I32WrapI64]);
+  }
+
+  static public function getField(m:MethodScope, target:TypedExpr, name:String, type:BufferViewType, expected:Null<ValueType>, pos:Position) {
+    function length() 
+      return m.expr(target, I64).concat([I64Const(32), I64ShrU, I32WrapI64]);
+
+    final ret = 
+      switch name {
+        case 'byteLength':
+          switch type.alignment {
+            case 0: length();
+            case v: length().concat([I32Const(v), I32Shl]);
+          }
+        case 'byteOffset':
+          getStart(m, target, type);
+        case 'length':
+          length();
+        default: 
+          Context.error('Cannot access $name in WASM', pos);
+      }
+
+    return ret.concat(m.coerce(I32, expected, pos));
   }
 
   static final BY_NAME = [for (a in BufferViewType.ALL) '${a}Array' => a];

@@ -6,5 +6,7 @@ import haxe.macro.*;
 using haxe.macro.Tools;
 #end
 
+import haxe.ds.Option;
 import wasmix.wasm.Data;
+
 using Lambda;

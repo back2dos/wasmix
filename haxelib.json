@@ -1,18 +1,18 @@
 {
-  "name": "wasmix",
-  "license": "MIT",
-  "tags": [
-    "js",
-    "wasm"
-  ],
-  "classPath": "src",
-  "contributors": [
-    "back2dos"
-  ],
-  "releasenote": "initial release",
-  "version": "0.0.0",
-  "url": "https://github.com/back2dos/wasmix/",
-  "dependencies": {
-    "js.lib.BigInt": ""
-  }
+	"name": "wasmix",
+	"classPath": "src",
+	"dependencies": {
+		"js.lib.BigInt": ""
+	},
+	"url": "https://github.com/back2dos/wasmix/",
+	"contributors": [
+		"back2dos"
+	],
+	"version": "0.0.0",
+	"releasenote": "Initial release.",
+	"tags": [
+		"js",
+		"wasm"
+	],
+	"license": "MIT"
 }

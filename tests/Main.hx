@@ -1,55 +1,78 @@
 import examples.*;
 import wasmix.runtime.*;
+import haxe.ds.Option;
 
 import haxe.Timer.stamp;
 
-class Foo {
-  static public var first = 1;
-}
-
-class Example {
-  static public function none():haxe.ds.Option<Int> {
-    return None;
-  }
-  static public function fib(n:Int){
-    return if (n < 2) Foo.first else fib(n - 1) + fib(n - 2);
-  }
-}
-
 function main() {
-  final example = wasmix.Compile.module(Example, { sync: true, skip: false });
-  trace(example.fib(10));
 
-  // wasmix.Compile.module(Track).then(x -> {
-  //   return;
-  //   x.memory.grow(8000);
+  final waveForm = wasmix.Compile.module(WaveForm);
+  // final example = wasmix.Compile.module(Example, { validate: true });
 
-  //   final length = 40_000_000;
+  // trace(example.test2('nil'));
+  // // // trace(example.fib(10));
 
-  //   final left = new Float32Array(x.memory.buffer, 0, length);
-  //   final right = new Float32Array(x.memory.buffer, left.byteLength, length);
+  // // trace(example.test(new Allocator(example.memory)));
+  // // trace(example.test2('nil'));
 
-  //   for (i in 0...left.length) {
-  //     left[i] = Math.random() * 2 - 1;
-  //     right[i] = Math.random() * 2 - 1;
-  //   }
+  // final allocator = new Allocator(waveForm.memory);
+  // final audio = allocator.f32(44100 * 200); // 200 seconds of audio
 
-  //   final iters = 10;
-  //   for (_ in 0...iters) {
-  //     x.pan(left, right, 0.0);
-  //     Track.pan(left, right, 0.0);
-  //   }
+  // for (i in 0...audio.length) audio[i] = Math.random() * 2 - 1;
 
-  //   for (run in 0...2) {
-  //     measure('Wasmix run ${run} (${iters} iters)', () -> {
-  //       for (i in 0...iters) x.pan(left, right, 0.0);  // gain = 1.0
-  //     });
-
-  //     measure('Track run ${run} (${iters} iters)', () -> {
-  //       for (i in 0...iters) Track.pan(left, right, 0.0);  // gain = 1.0
-  //     });
-  //   }
+  // final ctx:js.html.CanvasRenderingContext2D = cast { fillRect: function () {}, canvas: { width: 100, height: 100 }};
+  
+  // measure('wasmix', () -> {
+  //   for (i in 0...100) waveForm.draw(ctx, audio);
   // });
+
+  // measure('    js', () -> {
+  //   for (i in 0...100) WaveForm.draw(ctx, audio);
+  // });
+
+  // return;
+
+  // final options = [Some(1), None];
+
+  // measure('wasmix', () -> {
+  //   for (i in 0...1_000_000)
+  //     example.double(options[i % 2]);
+  // });
+
+  // measure('    js', () -> {
+  //   for (i in 0...1_000_000)
+  //     Example.double(options[i % 2]);
+  // });
+  
+  final track = wasmix.Compile.module(Track);
+
+  track.memory.grow(8000);
+
+  final length = 40_000_000;
+
+  final left = new Float32Array(track.memory.buffer, 0, length);
+  final right = new Float32Array(track.memory.buffer, left.byteLength, length);
+
+  for (i in 0...left.length) {
+    left[i] = Math.random() * 2 - 1;
+    right[i] = Math.random() * 2 - 1;
+  }
+
+  final iters = 10;
+  for (_ in 0...iters) {
+    track.pan(left, right, 0.0);
+    Track.pan(left, right, 0.0);
+  }
+
+  for (run in 0...2) {
+    measure('Wasmix run ${run} (${iters} iters)', () -> {
+      for (i in 0...iters) track.pan(left, right, 0.0);  // gain = 1.0
+    });
+
+    measure('Track run ${run} (${iters} iters)', () -> {
+      for (i in 0...iters) Track.pan(left, right, 0.0);  // gain = 1.0
+    });
+  }
 }
 
 function measure<T>(what, fn:()->T) {

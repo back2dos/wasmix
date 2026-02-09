@@ -10,10 +10,11 @@ class Test {
 }
 
 class Example {
-  static public function casts():Float {
-    final v:Float32 = 1;
-    return v;
-  }
+  // static public function casts():Float {
+  //   final v:Float32 = 1;
+  //   return v;
+  // }
+  
   static public function double(e:Option<Int>) {
     return switch e {
       case Some(x): Some(x * 2);
@@ -21,23 +22,39 @@ class Example {
     }
   }
 
-  static public function length(u:Int16Array) {
-    return u.length;
-  }
+  // static public function length(u:Int16Array) {
+  //   return u.length;
+  // }
 
-  static public function sum(u:Int16Array) {
-    var sum = 0;
-    for (k in u) sum += k;
-    return sum;
-  }
+  // static public function sum(u:Int16Array) {
+  //   var sum = 0;
+  //   for (k in u) sum += k;
+  //   return sum;
+  // }
 
-  static public function roundtrip(u:Int16Array) {
-    return u;
-  }
+  // static public function roundtrip(u:Int16Array, s:String) {
+  //   s.toUpperCase();
+  //   return u;
+  // }
   
-  static public function inc(u:Int16Array, delta:Int) {
-    for (i in 0...u.length) u[i] += delta;
+  static public function test(a:Allocator) {
+    return a.u8(10).byteLength;
   }
+
+  static public function test2(s:String) {
+    s += 'foo';
+    inline function foo() {
+      return 1;
+    }
+    return foo();
+    // var a:Array<Float> = [0, 1];
+    // return a[0];
+    // return '$s::$s'.toUpperCase().substr(5, 4);
+  }
+
+  // static public function inc(u:Int16Array, delta:Int) {
+  //   for (i in 0...u.length) u[i] += delta;
+  // }
   // static public function enums(e:Option<Int>) {
   //   return switch e {
   //     case Some(x): x;

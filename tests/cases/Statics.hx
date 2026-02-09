@@ -24,6 +24,8 @@ function main() {
   // Test combining external field + own method + external method
   final energy = physics.kineticEnergy(4);  // 0.5 * mass * velocity^2 = 0.5 * 1 * 16 = 8
   Assert.that(energy == 8);
+
+  physics.mutations();
 }
 
 // External constants and utilities (not wasmixed)
@@ -67,4 +69,19 @@ class Physics {
     final mass = getDefaultMass();
     return (mass * velocity * velocity) >> 1;
   }
+
+  static public function mutations() {
+    Assert.that((DEFAULT_MASS = 11) == 11);
+    Assert.that(DEFAULT_MASS++ == 11);
+    Assert.that(++DEFAULT_MASS == 13);
+    Assert.that(DEFAULT_MASS-- == 13);
+    Assert.that(--DEFAULT_MASS == 11);
+    Assert.that((DEFAULT_MASS *= 2) == 22);
+    Assert.that((DEFAULT_MASS += 10) == 32);
+    Assert.that((DEFAULT_MASS -= 5) == 27);
+    Assert.that((DEFAULT_MASS <<= 2) == 108);
+    Assert.that((DEFAULT_MASS &= 4) == 4);
+    Assert.that((DEFAULT_MASS >>= 1) == 2);
+  }
+
 }

@@ -1,6 +1,6 @@
 package wasmix.compiler;
 
-import wasmix.compiler.BufferView;
+import wasmix.compiler.plugins.BufferViews;
 
 class ClassScope {
 
@@ -18,6 +18,12 @@ class ClassScope {
   public function new(pos:Position, cl:ClassType) {
     this.name = typeId(cl);
     this.imports = new Imports(this);
+
+    switch cl.constructor {
+      case null:
+      case _.get() => ctor: error('Constructor is not supported', ctor.pos);
+    }
+
 
     for (f in cl.statics.get()) switch f.kind {
       case FMethod(MethNormal):        
@@ -55,9 +61,6 @@ class ClassScope {
     }
   }
 
-  public function isSelf(cls:ClassType)
-    return ClassScope.typeId(cls) == name;
-
   public function transpile():Module {
     final prepared = [for (method in methods) method.prepare()];
     
@@ -90,24 +93,7 @@ class ClassScope {
   }
 
   public function type(t:Type, pos:Position) {
-    return switch Context.followWithAbstracts(t) {
-      case TAbstract(a, _): 
-        switch a.toString() {
-          case "Bool" | "Int": I32;
-          case "wasmix.runtime.Float32": F32;
-          case "Float": F64;
-          case "EnumValue": ExternRef;
-          default: error('Unsupported type ${a.toString()}', pos);
-        }
-      case TInst(c = _.get() => { kind: KTypeParameter(_) }, _): Context.error('Type parameter $c not supported', pos);
-      case TInst(BufferView.getType(_) => Some(kind), _): I64;
-      case TDynamic(_) | TEnum(_) | TInst(_): ExternRef;
-      default: error('Unsupported type ${t.toString()}', pos);
-    }
-  }
-
-  function error(message:String, pos:Position):Dynamic {
-    return Context.error(message, pos);
+    return toValueType(t, pos);
   }
 
   public function exportsShape() {
@@ -137,14 +123,14 @@ class ClassScope {
   }
 
   public function toWASM(e:Expr, t:Type) {
-    return switch BufferView.getType(t) {
+    return switch BufferViews.getType(t) {
       case Some(_): macro cast $i{EXPORTS}.memory.toWASM($e);
       case None: e;
     }
   }
 
   public function fromWASM(e:Expr, t:Type) {
-    return switch BufferView.getType(t) {
+    return switch BufferViews.getType(t) {
       case Some(type): macro cast $i{EXPORTS}.memory.fromWASM(cast $e, $p{['wasmix', 'runtime', '${type}Array']}.new);
       case None: 
         switch Context.followWithAbstracts(t) {

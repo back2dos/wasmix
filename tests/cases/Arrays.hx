@@ -11,6 +11,7 @@ function main() {
   arrays.shiftUnshift();
   arrays.sliceSplice();
   arrays.join();
+  arrays.updates();
 }
 
 class Arrays {
@@ -61,5 +62,13 @@ class Arrays {
     final arr = ["a", "b", "c"];
     Assert.that(arr.join(",") == "a,b,c");
     Assert.that(arr.join("") == "abc");
+  }
+
+  static public function updates() {
+    final arr = [1, 2, 3];
+    arr[0] = 10;
+    arr[1] *= 10;
+    arr[2] += 100;
+    Assert.equal(arr, [10, 20, 103]);
   }
 }

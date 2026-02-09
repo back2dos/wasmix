@@ -5,6 +5,7 @@ function main() {
   Arrays.main();
   Coercion.main();
   Enums.main();
+  Instances.main();
   Statics.main();
   Strings.main();
   TypedArrays.main();

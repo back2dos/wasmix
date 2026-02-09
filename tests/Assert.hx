@@ -17,7 +17,8 @@ class Assert {
 
   static function _assert(holds:Bool, message:String, module:String, method:String) {
     total++;
-    if (suite != module) {
+    final changed = suite != module;
+    if (changed) {
       println('\nTesting ${suite = module}:\n');
       subsuite = null;
     }
@@ -26,7 +27,7 @@ class Assert {
       subsuite = switch method {
         case 'main': null;
         case v: 
-          if (subsuite != null) println('');
+          if (subsuite != null || !changed) println('');
           println('  $v:\n');
           v;
       }

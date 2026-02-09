@@ -70,6 +70,8 @@ class Imports {
       return switch f {
         case Method(t): '${name}:${t.id()}';
         case Get(t): 'get.${name}:${t.toString()}';
+        case Update(ret, kind):   
+          '${kind.methodName()}.${name}:${kind.value(_ -> Context.getType('Int'))}->${ret.toString()}';
       }
     }
 
@@ -103,7 +105,7 @@ class Imports {
 
   public function find(i:MemberImport, pos:Position) {
     final key = '${module(i)}::${id(i)}';
-    return functionIndices[key] ?? Context.error('${key} not found', pos);
+    return functionIndices[key] ?? error('${key} not found', pos);
   }
 
   public function add(i:MemberImport, pos:Position) {
@@ -120,7 +122,7 @@ class Imports {
             expr: EFunction(null, {
               args: [for (a in args) { name: a.name, type: a.type.toComplexType() }],
               ret: t.ret.toComplexType(),
-              expr: macro return ${scope.toWASM(macro @:privateAccess $callee.$name($a{callArgs}), t.ret)},
+              expr: macro @:pos(pos) return ${scope.toWASM(macro @:pos(pos) @:privateAccess $callee.$name($a{callArgs}), t.ret)},
             }),
           }
         }
@@ -144,14 +146,50 @@ class Imports {
       };
     }
 
+    function update(owner:Expr, name:String, ret:Type, k:Common.UpdateKindOf<Type>, args:Array<FunctionType.FunctionTypeArg>):MethodImport {
+      final arg = k.value();
+      final target = macro @:privateAccess $owner.$name;
+
+      function make(op) 
+        return { pos: pos, expr: EBinop(op, target, macro v) };
+
+      final body = switch k {
+        case Bump(up, false): make(OpAssignOp(OpAdd));
+        case Bump(up, true): 
+          macro {
+            var ret = $target;
+            $target = ${make(OpAdd)};
+            ret;
+          }
+        case AssignOp(v, op): make(OpAssignOp(op));
+        case Assign(v): macro $target = v;
+      }
+
+      return { 
+        args: [for (a in args) a.type].concat([arg]), 
+        ret: ret, 
+        expr: {
+          {
+            pos: pos,
+            expr: EFunction(null, {
+              args: [for (a in args) { name: a.name, type: a.type.toComplexType() }].concat([{ name: 'v', type: arg.toComplexType() }]),
+              ret: ret.toComplexType(),
+              expr: macro return ${scope.toWASM(body, ret)},
+            }),
+          }
+        }
+      };
+    }
+
     addIfNeeded(module(i), id(i), () -> {
       final m = switch i {
         case Constructor(c, t): 
           final callArgs = [for (a in t.args) scope.toWASM(macro $i{a.name}, a.type)];
 
+          final pack = c.module.split('.');
           final path:TypePath = {
-            pack: c.pack,
-            name: c.name,
+            name: pack.pop(),
+            pack: pack,
             sub: c.name,
             params: [],            
           }
@@ -172,10 +210,14 @@ class Imports {
           method(macro $p{b.module.split('.').concat([b.name])}, name, t, []);
         case Static(b, name, Get(t)): 
           get(macro $p{b.module.split('.').concat([b.name])}, name, t, []);
+        case Static(b, name, Update(ret, kind)): 
+          update(macro $p{b.module.split('.').concat([b.name])}, name, ret, kind, []);
         case Field(receiver, name, Method(t)): 
-          method(scope.fromWASM(macro self, receiver), name, t, [{ name: 'self', type: receiver }]);  
+          method(scope.fromWASM(macro self, receiver), name, t, [{ name: 'self', type: receiver, valueType: ExternRef }]);  
         case Field(receiver, name, Get(t)): 
-          get(macro self, name, t, [{ name: 'self', type: receiver }]);
+          get(macro self, name, t, [{ name: 'self', type: receiver, valueType: ExternRef }]);
+        case Field(receiver, name, Update(ret, kind)): 
+          update(macro self, name, ret, kind, [{ name: 'self', type: receiver, valueType: ExternRef }]);
       }
 
       {
@@ -183,6 +225,8 @@ class Imports {
         kind: ImportFunction(scope.signature(m.args, m.ret, m.expr.pos)),
       }
     });
+
+    return true;
   }
 
   static final classes = new Map();
@@ -211,6 +255,7 @@ class Imports {
   
   public function findStaticByName(cls, field, t:NamedStatic) {
     final resolved = resolve(cls, field);
+    
     return find(Static(resolved.cl, field, t), resolved.f.pos);
   }
 }
@@ -222,13 +267,14 @@ abstract NamedStatic(FieldKind) from FieldKind to FieldKind {
     case Some(v): Method(v);
     case None: Get(t);
   });
+
   @:from static function functionType(t:FunctionType) return new NamedStatic(Method(t));
 }
 
 enum FieldKind {
   Method(t:FunctionType);
   Get(t:Type);
-  // Set(t:Type, op:Null<Binop>); // TODO: implement
+  Update(ret:Type, kind:Common.UpdateKindOf<Type>);
 }
 
 enum MemberImport {

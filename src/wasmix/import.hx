@@ -1,4 +1,5 @@
 #if macro
+import wasmix.compiler.Helpers;
 import haxe.macro.Expr;
 import haxe.macro.Type;
 import haxe.macro.*;

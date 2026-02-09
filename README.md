@@ -66,13 +66,23 @@ Typed array access is **currently not bound checked**. If you read outside the b
 
 ## Not supported (yet?)
 
+- `Null<Int>` | `Null<Float>` | `Null<Bool>` - nullable primitives don't really fly in WASM (and error handling is not optimal here yet either). There are multiple options:
+  1. Coerce all to a default value as is the case on static platforms, potentially risking inconsistent behavior between JS ans WASM.
+  2. Box them, at the cost of performance.
 - Anonymous object: this is easy enough to change and soon will.
-- Arbitrary assignments: currently assignments are supported only on local variables and typed array entries. This is temporary. It's just that assigment operators are really quite annoying.
 - Local functions: you can only have inline local functions. The main issue is that local functions need all sorts of runtime support like a garbage collector and a place to store captured variables and what not.
 - First class functions: you can only call static/instance methods or inline local functions directly. You cannot use functions as values.
 - Type parameters: support for type parameters is limited, in particular because numeric primitives do not mix with other values in WASM. Perhaps constrained type parameters will work fully in the future. If you need generic functions, they will either have to be inlined or live in a non-wasmixed class, where you can call them via bridging.
 
+## Future plans
 
-## SIMD
+### SIMD
 
 The next big thing to figure out will be how to make SIMD instructions available in wasmix in a way that is reasonably readable and can work in JS too. This is currently subject to investigation. Suggestions are welcome.
+
+### Instantiable modules
+
+Currently, wasmix only allows for static members, where methods live entirely in WebAssembly, while fields live in the Haxe world. There are two reasons for this:
+
+1. global state is thus shared between WASM and JS.
+2. in the future, it will be possible to instantiate classes, so that their instance fields become true WebAssembly globals, while they share their static state via the original Haxe class.

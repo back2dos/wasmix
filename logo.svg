@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-  <rect x="0" y="0" width="100%" height="100%" fill="#654ff0"/>
+  <rect x="0" y="0" width="100%" height="100%" rx="10" ry="10" fill="#654ff0"/>
   <!-- Square with one inward arc notch on each side -->
   <path fill="white" d="
     M40 20L84 20A16 16 0 0 0 116 20L160 20L160 64A16 16 0 0 0 160 96L160 140L116 140A16 16 0 0 0 84 140L40 140L40 96A16 16 0 0 0 40 64

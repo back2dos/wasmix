@@ -1,4 +1,9 @@
-# WASMIX - WASM In haXe
+<p align="center">
+  <img src="/logo.svg" width="200" alt="wasmix logo">
+</p>
+<h1 align="center">
+  WASMIX - WASM In haXe
+</h1>
 
 DISCLAIMER: this library is in early stages of development.
 
